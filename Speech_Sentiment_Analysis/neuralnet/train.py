@@ -10,8 +10,8 @@ import argparse
 def main(args):
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     datamodule = EmotionDataModule(file_path=args.file_path,
-                                   max_width=1266,
-                                   max_height=201,
+                                   max_width=1200,
+                                   max_height=200,
                                    batch_size=args.batch_size,
                                    num_workers=args.num_workers)
     
@@ -19,7 +19,7 @@ def main(args):
     datamodule.setup()
     
     # Create model
-    num_classes = 7
+    num_classes = 6
     model = neuralnet(input_size=1,
                       num_classes=num_classes,
                       learning_rate=args.lr).to(device)
@@ -35,7 +35,7 @@ def main(args):
                          min_epochs=1,
                          max_epochs=args.epochs,
                          precision=args.precision,
-                         log_every_n_steps=50,
+                         log_every_n_steps=100,
                          callbacks=[EarlyStopping(monitor="val_loss"),
                                     checkpoint_callback]
                         )
@@ -59,11 +59,10 @@ if __name__  == "__main__":
 
     # General Train Hyperparameters
     parser.add_argument('--epochs', default=10, type=int, help='number of total epochs to run')
-    parser.add_argument('--batch_size', default=16, type=int, help='size of batch')
+    parser.add_argument('--batch_size', default=32, type=int, help='size of batch')
     parser.add_argument('--lr', default=1e-6, type=float, help='learning rate')
     parser.add_argument('--precision', default='16-mixed', type=str, help='precision')
     
     args = parser.parse_args()
     main(args)
-
 

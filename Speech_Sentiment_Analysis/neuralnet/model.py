@@ -4,39 +4,38 @@ import torchaudio
 
 import torchmetrics
 from torch import nn 
-from efficientnet_pytorch import EfficientNet
 
 class neuralnet(pl.LightningModule):
     def __init__(self, input_size, num_classes, learning_rate):
         super().__init__()
         self.conv_block_1 = nn.Sequential(
-            nn.Conv2d(input_size, 32, kernel_size = 5, stride = 2, padding = 2),
+            nn.Conv2d(input_size, 256, kernel_size = 5, stride = 2, padding = 2),
             nn.ReLU(),
             nn.MaxPool2d(kernel_size = 2, stride=2),
         )
         self.conv_block_2 = nn.Sequential(
-            nn.Conv2d(32, 64, kernel_size = 3, stride = 1, padding = 2),
+            nn.Conv2d(256, 128, kernel_size = 5, stride = 2, padding = 2),
             nn.ReLU(),
             nn.MaxPool2d(kernel_size = 2, stride=2),
             nn.Dropout(0.2)
         )
         self.conv_block_3 = nn.Sequential(
-            nn.Conv2d(64, 128, kernel_size = 3, stride = 1, padding = 2),
+            nn.Conv2d(128, 64, kernel_size = 5, stride = 2, padding = 2),
             nn.ReLU(),
             nn.MaxPool2d(kernel_size = 2, stride=2),
             # nn.Dropout(0.2)
         )
-        self.conv_block_4 = nn.Sequential(
-            nn.Conv2d(128, 256, kernel_size = 3, stride = 1, padding = 2),
-            nn.ReLU(),
-            nn.MaxPool2d(kernel_size = 2, stride=2),
-            nn.Dropout(0.2)
-        )
+        # self.conv_block_4 = nn.Sequential(
+        #     nn.Conv2d(512, 256, kernel_size = 5, stride = 1, padding = 2),
+        #     nn.ReLU(),
+        #     nn.MaxPool2d(kernel_size = 2, stride=2),
+        #     nn.Dropout(0.2)
+        # )
         
         self.flatten = nn.Flatten()
-        self.fc1 = nn.Linear(83968, 1000)
-        self.fc2 = nn.Linear(1000, num_classes)
-        self.dropout = nn.Dropout(0.5)
+        self.fc1 = nn.Linear(3648, 512)
+        self.fc2 = nn.Linear(512, num_classes)
+        self.dropout = nn.Dropout(0.2)
         self.relu = nn.ReLU()
 
         # Metrics
@@ -49,7 +48,7 @@ class neuralnet(pl.LightningModule):
         x = self.conv_block_1(x)
         x = self.conv_block_2(x)
         x = self.conv_block_3(x)
-        x = self.conv_block_4(x)
+        # x = self.conv_block_4(x)
         x = self.flatten(x)
         x = self.fc1(x)
         x = self.relu(x)
@@ -107,6 +106,7 @@ class neuralnet(pl.LightningModule):
               'monitor': 'val_loss',
           }
         return [optimizer], [scheduler]
+
 
 
 
