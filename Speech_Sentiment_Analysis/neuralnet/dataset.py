@@ -1,58 +1,63 @@
-import pytorch_lightning as pl 
 import pandas as pd
 import numpy as np
-
+from sklearn.preprocessing import OneHotEncoder
 import torch
-import torchaudio
-from torch.nn import functional as F
-from torch.utils.data import Dataset, random_split, DataLoader
+from torch.utils.data import Dataset, DataLoader, random_split
+import pytorch_lightning as pl
 
 class EmotionDataset(Dataset):
-    def __init__(self, file_path, max_width, max_height):
-        self.audio_file_dict = pd.read_csv(file_path, index_col=0)
-        self.audio_file_dict.dropna(inplace=True) # drop missing values
-        
-        self.max_width = max_width
-        self.max_height = max_height
-    
-    def __getitem__(self, path):
-        audio_path = self.audio_file_dict.index[path]
-        audio, _ = torchaudio.load(audio_path)
-        audio = torch.mean(audio, dim=0).unsqueeze(0)
-        spectrogram = torchaudio.transforms.Spectrogram()(audio)
-        spectrogram = F.pad(spectrogram, [0, self.max_width - spectrogram.size(2), 0, self.max_height - spectrogram.size(1)])
-        
-        label = pd.get_dummies(self.audio_file_dict.emotion).iloc[path].values
-        label = torch.from_numpy(label).float()
-        return (spectrogram, label)
-    
-    def __len__(self):
-        return len(self.audio_file_dict)
-    
+    def __init__(self, file_path):
+        self.file_path = file_path
+        self._prepare_data()
 
-    
+    def _prepare_data(self):
+        """ Load Data and One Hot Encode the Labels """
+        Emotions = pd.read_csv(self.file_path)
+        # print(Emotions)
+        Emotions = Emotions.fillna(0)      
+
+        X = Emotions.iloc[:, :-1].values
+        Y = Emotions['Emotions'].values
+
+        # OneHotEncode labels
+        encoder = OneHotEncoder()
+        Y = encoder.fit_transform(np.array(Y).reshape(-1, 1)).toarray()
+
+        # Convert to PyTorch tensors
+        # print(X.shape, Y.shape)
+        self.X = torch.tensor(X, dtype=torch.float32)
+        self.Y = torch.tensor(Y, dtype=torch.float32)
+       
+
+    def __getitem__(self, index):
+        # print(self.X[index].shape, self.Y[index].shape)
+        return self.X[index], self.Y[index]
+
+    def __len__(self):
+        return len(self.X)
+
 class EmotionDataModule(pl.LightningDataModule):
-    def __init__(self, file_path, max_width, max_height, batch_size, num_workers):
+    def __init__(self, file_path, batch_size, num_workers):
         super().__init__()
         self.file_path = file_path
-        self.max_width = max_width
-        self.max_height = max_height
         self.batch_size = batch_size
         self.num_workers = num_workers
 
     def prepare_data(self):
-        pass
+        # No need for explicit preparation
+        # as it's done in EmotionDatasetc custom dataloader
+        pass 
 
     def setup(self, stage=None):
         # Create Dataset
-        dataset = EmotionDataset(self.file_path, self.max_width, self.max_height)
+        dataset = EmotionDataset(self.file_path)
 
-        # RandomSplit the dataset [75:25]
+        # RandomSplit the dataset [80:20]
         dataset_size = len(dataset)
-        val_size = int(0.25*dataset_size)
+        val_size = int(0.20 * dataset_size)
         train_size = dataset_size - val_size
         self.train_data, self.val_data = random_split(dataset, [train_size, val_size])
-    
+
     def train_dataloader(self):
         return DataLoader(self.train_data, batch_size=self.batch_size, num_workers=self.num_workers, shuffle=True)
     
@@ -60,6 +65,5 @@ class EmotionDataModule(pl.LightningDataModule):
         return DataLoader(self.val_data, batch_size=self.batch_size, num_workers=self.num_workers, shuffle=False)
     
     def test_dataloader(self):
-        pass
-
-    
+        # Using val_data as test_dataset in the end for final eval
+        return DataLoader(self.val_data, batch_size=self.batch_size, num_workers=self.num_workers, shuffle=False)
