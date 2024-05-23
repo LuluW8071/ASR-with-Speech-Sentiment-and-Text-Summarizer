@@ -1,3 +1,4 @@
 lightning
+scikit-learn
 pandas
 numpy
