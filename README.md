@@ -15,5 +15,5 @@
 
     ```bash
     cd Speech_Sentiment_Analysis
-    python neuralnet/main.py --file_path "/path/to/file_path.csv" --epochs 50 --batch_size 64 --lr 1e-6 --num_workers 2
+    python neuralnet/train.py --file_path "/path/to/file_path.csv" --epochs 20 --batch_size 64 -w 2
     ```
