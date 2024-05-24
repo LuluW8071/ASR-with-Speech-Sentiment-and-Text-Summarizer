@@ -1,11 +1,12 @@
 import pytorch_lightning as pl 
 import torch
+import argparse
 
 from model import neuralnet
 from dataset import EmotionDataModule
 
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
-import argparse
+
 
 def main(args):
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -20,7 +21,8 @@ def main(args):
     num_classes = 6
     model = neuralnet(input_size=1,
                       output_shape=num_classes,
-                      learning_rate=args.lr).to(device)
+                      learning_rate=args.lr,
+                      steps=args.steps).to(device)
     
     # Save the model periodically by monitoring a quantity
     checkpoint_callback = ModelCheckpoint(monitor="val_loss",
@@ -33,7 +35,7 @@ def main(args):
                          min_epochs=1,
                          max_epochs=args.epochs,
                          precision=args.precision,
-                         log_every_n_steps=50,
+                         log_every_n_steps=args.steps,
                          callbacks=[EarlyStopping(monitor="val_loss"),
                                     checkpoint_callback]
                         )
@@ -61,6 +63,9 @@ if __name__  == "__main__":
     parser.add_argument('--batch_size', default=32, type=int, help='size of batch')
     parser.add_argument('--lr', default=1e-3, type=float, help='learning rate')
     parser.add_argument('--precision', default='16-mixed', type=str, help='precision')
+    
+    # Params
+    parser.add_argument('--steps', default=200, type=int, help='log every n steps')
     
     args = parser.parse_args()
     main(args)

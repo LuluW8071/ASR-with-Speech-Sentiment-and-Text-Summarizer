@@ -56,6 +56,7 @@ class EmotionDataModule(pl.LightningDataModule):
         dataset_size = len(dataset)
         val_size = int(0.20 * dataset_size)
         train_size = dataset_size - val_size
+        # print(val_size, train_size)
         self.train_data, self.val_data = random_split(dataset, [train_size, val_size])
 
     def train_dataloader(self):
