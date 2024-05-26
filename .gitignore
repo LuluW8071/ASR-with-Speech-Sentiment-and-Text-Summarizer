@@ -1,2 +1,5 @@
 env/
 .env
+freeze_model.py
+model/
+__pycache__

@@ -13,7 +13,6 @@ class EmotionDataset(Dataset):
     def _prepare_data(self):
         """ Load Data and One Hot Encode the Labels """
         Emotions = pd.read_csv(self.file_path)
-        # print(Emotions)
         Emotions = Emotions.fillna(0)      
 
         X = Emotions.iloc[:, :-1].values
@@ -22,6 +21,11 @@ class EmotionDataset(Dataset):
         # OneHotEncode labels
         encoder = OneHotEncoder()
         Y = encoder.fit_transform(np.array(Y).reshape(-1, 1)).toarray()
+        
+        # Check endoded labels 
+        # encoded_labels = encoder.categories_[0]
+        # for i, label in enumerate(encoded_labels):
+        #     print(f"Column {i}: {label}")
 
         # Convert to PyTorch tensors
         # print(X.shape, Y.shape)

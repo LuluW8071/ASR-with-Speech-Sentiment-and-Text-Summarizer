@@ -1,4 +1,6 @@
 lightning
+python-dotenv
 scikit-learn
 pandas
 numpy
+comet-ml
