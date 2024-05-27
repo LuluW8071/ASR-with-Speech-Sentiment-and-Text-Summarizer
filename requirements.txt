@@ -1,5 +1,8 @@
 lightning
 python-dotenv
+pyaudio
+pydub
+soundfile
 scikit-learn
 pandas
 numpy
