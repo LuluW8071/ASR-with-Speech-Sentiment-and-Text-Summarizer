@@ -1,5 +1,18 @@
+# Virtual Environment
 env/
+
+# API
 .env
+
+# Useless
+__pycache__
+
+# SER
 freeze_model.py
 model/
-__pycache__
+recorded_audio.wav
+sample
+
+# ASR
+dataset
+converted_dataset
