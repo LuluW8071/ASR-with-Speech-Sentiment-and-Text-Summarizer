@@ -11,7 +11,6 @@ __pycache__
 freeze_model.py
 model/
 recorded_audio.wav
-sample
 
 # ASR
 dataset
