@@ -1,6 +1,7 @@
-from comet_ml import Experiment         # You can comment this for freezing the model
+from comet_ml import Experiment, ExistingExperiment       
 import pytorch_lightning as pl 
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
+from pytorch_lightning.loggers import CometLogger
 
 import torch
 import torchmetrics
@@ -53,11 +54,8 @@ class SentimentTrainer(pl.LightningModule):
         # print('Pred Labels:', y_pred
         # print('Labels:', y)
         accuracy = self.accuracy(y_pred, y)
-        self.log_dict({"loss": loss,
-                       "accuracy": accuracy},
-                      on_step=True, on_epoch=False,
-                      prog_bar=True,
-                      logger=True)
+        self.log("train_loss", loss, on_step=True, on_epoch=False, prog_bar=True, logger=True)
+        self.log("train_accuracy", accuracy, on_step=True, on_epoch=False, prog_bar=True, logger=True)
         return loss
 
     def on_validation_epoch_start(self):
@@ -74,10 +72,6 @@ class SentimentTrainer(pl.LightningModule):
         # Accumulate predictions and targets for confusion matrix
         self.predictions.append(y_pred.detach().to('cpu'))
         self.targets.append(y.detach().to('cpu'))
-        
-        # Log metrics to Comet.ml 
-        self.experiment.log_metric('val_loss', loss, step=self.log_steps)
-        self.experiment.log_metric('val_acc', accuracy, step=self.log_steps)
         return loss
 
     def on_validation_epoch_end(self):
@@ -88,9 +82,9 @@ class SentimentTrainer(pl.LightningModule):
         labels = ["angry", "disgust", "fear", "happy", "neutral", "sad"]
 
         # Log the confusion matrix to Comet
-        self.experiment.log_confusion_matrix(y_true=all_targets, 
-                                             y_predicted=all_preds,
-                                             labels=labels)
+        self.logger.experiment.log_confusion_matrix(y_true=all_targets.numpy(),
+                                                    y_predicted=all_preds.numpy(),
+                                                    labels=labels)
 
     def test_step(self, batch, batch_idx):
         loss, y_pred, y = self._common_step(batch, batch_idx)
