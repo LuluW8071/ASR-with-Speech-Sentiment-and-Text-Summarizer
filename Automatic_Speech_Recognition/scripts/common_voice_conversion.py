@@ -21,7 +21,7 @@ def main(args):
     if not os.path.exists(clips_directory):
         os.makedirs(clips_directory)
 
-    with open(args.file_path) as f:
+    with open(args.file_path, encoding="utf-8") as f:
         length = sum(1 for _ in f)
     
     with open(args.file_path, newline='') as csv_file:

@@ -1,5 +1,6 @@
 lightning
 python-dotenv
+librosa
 pyaudio
 pydub
 soundfile
