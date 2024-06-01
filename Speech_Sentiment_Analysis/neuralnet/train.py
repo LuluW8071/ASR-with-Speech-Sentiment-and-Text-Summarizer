@@ -28,12 +28,6 @@ class SentimentTrainer(pl.LightningModule):
 
         self.learning_rate = learning_rate
         self.log_steps = steps
-        self.experiment = Experiment(api_key=os.getenv('API_KEY'),
-                                     project_name=os.getenv('PROJECT_NAME'))
-
-        # For Confusion Matrix logger
-        self.predictions = []
-        self.targets = []
 
     def forward(self, x):
         return self.model(x)
@@ -122,12 +116,15 @@ def main(args):
     
     # Create model
     num_classes = 6
-
-    
     model = neuralnet(input_size=1,
                       output_shape=num_classes).to(device)
     
     sentiment_trainer = SentimentTrainer(model=model, learning_rate=args.lr, steps=args.steps)
+
+    # NOTE: Comet Logger
+    comet_logger = CometLogger(api_key=os.getenv('API_KEY'),
+                               project_name=('PROJECT_NAME'))
+
 
     # Save the model periodically by monitoring a quantity
     checkpoint_callback = ModelCheckpoint(monitor="val_loss",
@@ -141,8 +138,8 @@ def main(args):
                          max_epochs=args.epochs,
                          precision=args.precision,
                          log_every_n_steps=args.steps,
-                         callbacks=[EarlyStopping(monitor="val_loss"),
-                                    checkpoint_callback]
+                         callbacks=[EarlyStopping(monitor="val_loss"), checkpoint_callback],
+                         logger=comet_logger
                         )
     
     # Fit the model to the training data using the Trainer's fit method.
