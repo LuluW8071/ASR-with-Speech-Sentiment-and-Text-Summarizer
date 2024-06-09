@@ -41,16 +41,20 @@ class TextTransform:
             self.index_map[int(index)] = ch
         self.index_map[1] = ' '
 
+
     def text_to_int(self, text):
         """ Use a character map and convert text to an integer sequence """
         int_sequence = []
         for c in text:
-            if c == ' ':
+            if c == ' ' or c == '.' or c == ',' or c == '-' or c == '"' or c==";" or c=="?":
                 ch = self.char_map['<SPACE>']
             else:
                 ch = self.char_map[c]
+                # print(ch)
             int_sequence.append(ch)
         return int_sequence
+
+
 
     def int_to_text(self, labels):
         """ Use a character map and convert integer labels to an text sequence """
