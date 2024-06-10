@@ -49,7 +49,7 @@ class CustomAudioDataset(Dataset):
             if label_len == 0:
                 raise Exception('label len is zero... skipping %s' % file_path)
             
-            print(f'{idx}. {utterance}')
+            # print(f'{idx}. {utterance}')
             return spectrogram, label, spec_len, label_len
 
         except Exception as e:
@@ -103,9 +103,9 @@ class SpeechDataModule(pl.LightningDataModule):
         label_lengths = []
         for (waveform, label, input_length, label_length) in data:
             if data_type == 'train':
-                print(f'SpecShape: {waveform.shape}')
+                # print(f'SpecShape: {waveform.shape}')
                 spec = train_audio_transforms(waveform).squeeze(0).transpose(0, 1)
-                print(f'SpecAugment: {spec.shape}\n')
+                # print(f'SpecAugment: {spec.shape}\n')
             elif data_type == 'valid':
                 # print('Val_waveform:', waveform.shape)
                 spec = valid_audio_transforms(waveform).squeeze(0).transpose(0, 1)
@@ -121,9 +121,9 @@ class SpeechDataModule(pl.LightningDataModule):
             input_lengths.append(input_length)
             label_lengths.append(label_length)
 
-            # Print the shapes of spectrograms before padding
-        for spec in spectrograms:
-            print("Spec before padding:", spec.shape)
+        # Print the shapes of spectrograms before padding
+        # for spec in spectrograms:
+        #     print("Spec before padding:", spec.shape)
 
         spectrograms = nn.utils.rnn.pad_sequence(spectrograms, batch_first=True).unsqueeze(1).transpose(2, 3)
         labels = nn.utils.rnn.pad_sequence(labels, batch_first=True)
