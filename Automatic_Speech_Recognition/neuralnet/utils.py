@@ -45,8 +45,9 @@ class TextTransform:
     def text_to_int(self, text):
         """ Use a character map and convert text to an integer sequence """
         int_sequence = []
+        special_chars = {' ', '.', ',', '-', '"', ';', '?'}     # Some special chars 
         for c in text:
-            if c == ' ' or c == '.' or c == ',' or c == '-' or c == '"' or c==";" or c=="?":
+            if c in special_chars:
                 ch = self.char_map['<SPACE>']
             else:
                 ch = self.char_map[c]
