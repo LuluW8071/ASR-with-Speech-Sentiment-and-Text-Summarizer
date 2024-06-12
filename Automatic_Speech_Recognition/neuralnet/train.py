@@ -51,7 +51,7 @@ class ASRTrainer(pl.LightningModule):
         spectograms, labels, input_lengths, label_lengths = batch
         y_pred = self.forward(spectograms)  # (batch, time, n_class)
         y_pred = F.log_softmax(y_pred, dim=2)
-        y_pred = y_pred.transpose(0, 1)     # (time, batch, n_class)
+        # y_pred = y_pred.transpose(0, 1)     # (time, batch, n_class)
         loss = self.loss_fn(y_pred, labels, input_lengths, label_lengths)
         return loss, y_pred, labels, label_lengths
     
@@ -62,19 +62,22 @@ class ASRTrainer(pl.LightningModule):
         self.log('train_loss', loss, on_step=True, on_epoch=False, prog_bar=True, logger=True)
         return loss
     
+
     def validation_step(self, batch, batch_idx):
         loss, y_pred, labels, label_lengths = self._common_step(batch, batch_idx)
-
+        print(y_pred.shape)
         # Decode preds for WER and CER
         val_cer, val_wer = [], []
         decoded_preds, decoded_targets = GreedyDecoder(y_pred.transpose(0, 1), labels, label_lengths)
+        print('Decoded predictions:', decoded_preds[0:2])
+        print('Decoded targets:', decoded_targets[0:2])
         for j in range(len(decoded_preds)):
             val_cer.append(cer(decoded_targets[j], decoded_preds[j]))
             val_wer.append(wer(decoded_targets[j], decoded_preds[j]))
         avg_cer = sum(val_cer)/len(val_cer)
         avg_wer = sum(val_wer)/len(val_wer)
 
-        self.log('val_loss', loss, on_step=True, on_epoch=False, prog_bar=True, logger=True)
+        self.log('val_loss', loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
         self.log('val_cer', avg_cer, on_step=True, on_epoch=False, prog_bar=True, logger=True)
         self.log('val_wer', avg_wer, on_step=True, on_epoch=False, prog_bar=True, logger=True)
         return loss
@@ -125,6 +128,7 @@ def main(args):
     # NOTE: Define Trainer callbacks
     checkpoint_callback = ModelCheckpoint(
         monitor='val_loss',
+        dirpath="./saved_checkpoint/",
         filename='ASR-{epoch:02d}-{val_loss:.2f}',
         save_top_k=1,
         mode='min'
