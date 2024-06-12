@@ -4,20 +4,45 @@ import torchaudio
 import torch
 import torch.nn as nn
 import torchaudio.transforms as transforms
+import numpy as np
 
 from torch.utils.data import DataLoader, Dataset
 from utils import TextTransform
 
+
+class LogMelSpec(nn.Module):
+    def __init__(self, sample_rate=16000, n_mels=64, win_length=160, hop_length=80):
+        super(LogMelSpec, self).__init__()
+        self.transform = transforms.MelSpectrogram(sample_rate=sample_rate, n_mels=n_mels,
+                                                   win_length=win_length, hop_length=hop_length)
+
+    def forward(self, x):
+        x = self.transform(x)  # mel spectrogram
+        x = np.log(x + 1e-14)  # logarithmic, add small value to avoid inf
+        return x
+
+
 # Custom Dataset Class
 class CustomAudioDataset(Dataset):
-    def __init__(self, json_path, transform=None, log_ex=True):
+    def __init__(self, json_path, transform=None, log_ex=True, valid=False):
         print(f'Loading json data from {json_path}')
         with open(json_path, 'r') as f:
             self.data = json.load(f)
         # print(self.data)
         self.text_process = TextTransform()                 # Initialize TextProcess for text processing
         self.log_ex = log_ex
-        self.audio_transforms = transform
+
+        if valid:
+            self.audio_transforms = torch.nn.Sequential(
+                LogMelSpec()
+            )
+        else:
+            self.audio_transforms = torch.nn.Sequential(
+                LogMelSpec(),
+                transforms.FrequencyMasking(freq_mask_param=30),
+                transforms.TimeMasking(time_mask_param=100)
+            )
+
 
     def __len__(self):
         return len(self.data)
@@ -33,21 +58,20 @@ class CustomAudioDataset(Dataset):
             # print('Sentences:', utterance)
             label = self.text_process.text_to_int(utterance)
             spectrogram = self.audio_transforms(waveform)   # (channel, feature, time)
-
             spec_len = spectrogram.shape[-1] // 2
             label_len = len(label)
 
-            # print(f'SpecShape: {spectrogram.shape}')
-            # print(f'SpecShape[-1]: {spectrogram.shape[-1]}\t Speclen: {spec_len}')
+            # print(f'SpecShape: {spectrogram.shape} \t shape[-1]: {spectrogram.shape[-1]}')
+            # print(f'Speclen: {spec_len} \t Label_len: {label_len}')
 
             if spec_len < label_len:
                 raise Exception('spectrogram len is bigger then label len')
             if spectrogram.shape[0] > 1:
-                raise Exception('dual channel, skipping audio file %s' % file_path)
-            if spectrogram.shape[2] > 16000:
+                raise Exception('dual channel, skipping audio file %s' %file_path)
+            if spectrogram.shape[2] > 8000:
                 raise Exception('spectrogram to big. size %s' %spectrogram.shape[2])
             if label_len == 0:
-                raise Exception('label len is zero... skipping %s' % file_path)
+                raise Exception('label len is zero... skipping %s' %file_path)
             
             # print(f'{idx}. {utterance}')
             return spectrogram, label, spec_len, label_len
@@ -61,15 +85,33 @@ class CustomAudioDataset(Dataset):
         return self.data.describe()
 
 
-# NOTE: Define train_audio_transforms and valid_audio_transforms
-train_audio_transforms = nn.Sequential(
-    transforms.MelSpectrogram(sample_rate=16000, n_mels=64),
-    transforms.FrequencyMasking(freq_mask_param=30),
-    transforms.TimeMasking(time_mask_param=100)
-)
 
-valid_audio_transforms = transforms.MelSpectrogram(sample_rate=16000, n_mels=64)
+def data_processing(data):
+    spectrograms = []
+    labels = []
+    input_lengths = []
+    label_lengths = []
+    for (spectrogram, label, input_length, label_length) in data:
+        if spectrogram is None:
+            continue
 
+        spectrograms.append(spectrogram.squeeze(0).transpose(0, 1))
+        # print(len(spectrograms))
+        # print(f'Label Check: {label}')
+        labels.append(torch.Tensor(label))
+        input_lengths.append(spectrogram.shape[-1] // 2)
+        label_lengths.append(len(label))
+    # Print the shapes of spectrograms before padding
+    # for spec in spectrograms:
+    #     print("Spec before padding:", spec.shape)
+
+    # NOTE: https://www.geeksforgeeks.org/how-do-you-handle-sequence-padding-and-packing-in-pytorch-for-rnns/
+    spectrograms = nn.utils.rnn.pad_sequence(spectrograms, batch_first=True).unsqueeze(1).transpose(2, 3)
+    # print('Padded Spectrograms: ', spectrograms.shape)
+    labels = nn.utils.rnn.pad_sequence(labels, batch_first=True)
+
+    return spectrograms, labels, input_lengths, label_lengths
+    
 
 # Lightning Data Module
 class SpeechDataModule(pl.LightningDataModule):
@@ -82,71 +124,23 @@ class SpeechDataModule(pl.LightningDataModule):
 
     def setup(self, stage=None):
         self.train_dataset = CustomAudioDataset(self.train_json,
-                                                transform=train_audio_transforms)
+                                                valid=False)
         self.test_dataset = CustomAudioDataset(self.test_json, 
-                                               transform=valid_audio_transforms)
-
+                                               valid=True)
+        
+    
     def train_dataloader(self):
-        return DataLoader(self.train_dataset, batch_size=self.batch_size, shuffle=False, 
-                          collate_fn=lambda x: self.data_processing(x, 'train'), 
-                          num_workers=self.num_workers)
+        return DataLoader(self.train_dataset, 
+                          batch_size=self.batch_size, 
+                          shuffle=True, 
+                          collate_fn=lambda x: data_processing(x), 
+                          num_workers=self.num_workers, 
+                          pin_memory=True)      # Optimizes data-transfer speed for CUDA
 
     def val_dataloader(self):
-        return DataLoader(self.test_dataset, batch_size=self.batch_size, shuffle=False,
-                          collate_fn=lambda x: self.data_processing(x, 'valid'), 
-                          num_workers=self.num_workers)
-
-    def data_processing(self, data, data_type):
-        spectrograms = []
-        labels = []
-        input_lengths = []
-        label_lengths = []
-        for (waveform, label, input_length, label_length) in data:
-            if data_type == 'train':
-                # print(f'SpecShape: {waveform.shape}')
-                spec = train_audio_transforms(waveform).squeeze(0).transpose(0, 1)
-                # print(f'SpecAugment: {spec.shape}\n')
-            elif data_type == 'valid':
-                # print('Val_waveform:', waveform.shape)
-                spec = valid_audio_transforms(waveform).squeeze(0).transpose(0, 1)
-            else:
-                raise Exception('data_type should be train or valid')
-
-            spectrograms.append(spec)
-            # print(len(spectrograms))
-            # print(f'Check1:{label}')
-            label = torch.Tensor(label)
-            # print(f'Check2:{label}\n')
-            labels.append(label)
-            input_lengths.append(input_length)
-            label_lengths.append(label_length)
-
-        # Print the shapes of spectrograms before padding
-        # for spec in spectrograms:
-        #     print("Spec before padding:", spec.shape)
-
-        spectrograms = nn.utils.rnn.pad_sequence(spectrograms, batch_first=True).unsqueeze(1).transpose(2, 3)
-        labels = nn.utils.rnn.pad_sequence(labels, batch_first=True)
-
-        return spectrograms, labels, input_lengths, label_lengths
-
-
-# Checking
-if __name__ == "__main__":
-    # Define parameters
-    batch_size = 8
-    train_json = 'scripts/converted_dataset/train.json'
-    test_json = 'scripts/converted_dataset/test.json'
-    num_workers = 0
-
-    # Create data module instance
-    data_module = SpeechDataModule(batch_size, train_json, test_json, num_workers)
-
-    # Set up data module (downloads data if necessary and prepares datasets)
-    data_module.setup()
-
-    # Load the data loaders
-    train_loader = data_module.train_dataloader()
-    val_loader = data_module.val_dataloader()
-
-    print(len(train_loader), len(val_loader))
+        return DataLoader(self.test_dataset, 
+                          batch_size=self.batch_size, 
+                          shuffle=False,
+                          collate_fn=lambda x: data_processing(x), 
+                          num_workers=self.num_workers, 
+                          pin_memory=True)
