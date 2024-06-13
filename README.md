@@ -1,27 +1,48 @@
-# Automatic Speech Recognition with Speech Sentiment Analysis & Text Summarizer
+# ASR-with-Speech-Sentiment-Analysis-Text-Summarizer
 
-## Usage
+## Introduction
+## Goals
+## Contributors
+## Project Architecture
 
-1.  Install the required dependencies:
-    > Before installing dependencies from `requirements.txt` you must have installed **torch** from official website of [PyTorch](https://pytorch.org/). And if you want to train your own model install **CUDA** supported version of torch.
 
-    ```bash
-    pip install -r requirements.txt
-    ```
-2.  Load you Comet-ML API
+# Status
+## Known Issue
+## High Level Next Steps
 
-    For real-time loss curve plot, system metrics, confusion-matrix, edit `.env` with your Comet.ml API key and project name. Click [here](https://www.comet.com/site/) to sign up and get your Comet-ML API key.
 
-    ```python
-    API_KEY = "YOUR_API_KEY"
-    PROJECT_NAME = "YOUR_PROJECT_NAME"
-    ```
+# Usage
+## Installation
+To begin this project, use the included `Makefile`
 
-3.  Run the training script:
+#### Creating Virtual Environment
 
-    Run the `Speech_Sentiment.ipynb` first to get the *audio_path* and *emotions* table in csv format
+This package is built using `python-3.8`. 
+We recommend creating a virtual environment and using a matching version to ensure compatibility.
 
-    ```bash
-    cd Speech_Sentiment_Analysis/
-    python neuralnet/train.py --file_path "speech_emotion.csv" --epochs 20 --batch_size 32 -w 2 --steps 400
-    ```
+#### pre-commit
+
+`pre-commit` will automatically format and lint your code. You can install using this by using
+`make use-pre-commit`. It will take effect on your next `git commit`
+
+#### pip-tools
+
+The method of managing dependencies in this package is using `pip-tools`. To begin, run `make use-pip-tools` to install. 
+
+Then when adding a new package requirement, update the `requirements.in` file with 
+the package name. You can include a specific version if desired but it is not necessary. 
+
+To install and use the new dependency you can run `make deps-install` or equivalently `make`
+
+If you have other packages installed in the environment that are no longer needed, you can you `make deps-sync` to ensure that your current development environment matches the `requirements` files. 
+
+## Usage Instructions
+
+
+# Data Source
+## Code Structure
+## Artifacts Location
+
+# Results
+## Metrics Used
+## Evaluation Results
