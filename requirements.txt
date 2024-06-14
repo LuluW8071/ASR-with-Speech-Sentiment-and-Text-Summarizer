@@ -1,0 +1,13 @@
+pyarrow
+pandas[performance, parquet, aws]
+pendulum
+lightning
+python-dotenv
+librosa
+pyaudio
+pydub
+soundfile
+scikit-learn
+pandas
+numpy
+comet-ml

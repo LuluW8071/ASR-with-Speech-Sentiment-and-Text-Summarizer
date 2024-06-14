@@ -10,6 +10,18 @@ mlruns/
 # Environment Files
 .env
 
+# --- Project Scripts ---
+# SER
+freeze_model.py
+model/
+recorded_audio.wav
+
+# ASR
+dataset
+converted_dataset
+
+# -------------
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
