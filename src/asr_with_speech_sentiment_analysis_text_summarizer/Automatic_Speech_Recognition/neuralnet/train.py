@@ -1,23 +1,22 @@
 from comet_ml import Experiment, ExistingExperiment
 import pytorch_lightning as pl
+import argparse
+import os 
 import torch
 import torch.nn.functional as F
 import torch.optim as optim
-import argparse
-import os 
 from torch import nn
 from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
 from pytorch_lightning.loggers import CometLogger
+
+# Load API
+from dotenv import load_dotenv
+load_dotenv()
 
 from dataset import SpeechDataModule
 from model import SpeechRecognitionModel
 from utils import GreedyDecoder
 from scorer import wer, cer
-
-# Load API
-from dotenv import load_dotenv
-import os
-load_dotenv()
 
 class ASRTrainer(pl.LightningModule):
     def __init__(self, model, args, train_loader_len):
@@ -42,6 +41,7 @@ class ASRTrainer(pl.LightningModule):
                                                        steps_per_epoch=self.train_loader_len,
                                                        epochs=self.args.epochs,
                                                        anneal_strategy='linear'),
+
             'monitor': 'val_loss',
         }   
         return [optimizer], [scheduler]
@@ -52,35 +52,64 @@ class ASRTrainer(pl.LightningModule):
         y_pred = self.forward(spectograms)  # (batch, time, n_class)
         y_pred = F.log_softmax(y_pred, dim=2)
         y_pred = y_pred.transpose(0, 1)     # (time, batch, n_class)
+        # print(f"Logits: {y_pred}")
         loss = self.loss_fn(y_pred, labels, input_lengths, label_lengths)
         return loss, y_pred, labels, label_lengths
     
 
     def training_step(self, batch, batch_idx):
-        loss, y_pred, labels, _ = self._common_step(batch, batch_idx)
+        loss, y_pred, labels, label_lengths = self._common_step(batch, batch_idx)
 
+        # Determine if this is the final batch of the epoch
+        is_final_batch = batch_idx == (self.train_loader_len - 1)
+
+        if is_final_batch:
+            val_cer, val_wer = [], []
+            decoded_preds, decoded_targets = GreedyDecoder(y_pred.transpose(0, 1), labels, label_lengths)
+            
+            # print('\nTrain Decoded predictions:', decoded_preds[0])
+            # print('Train Decoded targets:', decoded_targets[0])
+
+            for j in range(len(decoded_preds)):
+                val_cer.append(cer(decoded_targets[j], decoded_preds[j]))
+                val_wer.append(wer(decoded_targets[j], decoded_preds[j]))
+            avg_cer = sum(val_cer)/len(val_cer)
+            avg_wer = sum(val_wer)/len(val_wer)
+
+            # Log metrics for the final batch of the epoch
+            self.log('cer', avg_cer, on_step=True, on_epoch=False, prog_bar=True, logger=True)
+            self.log('wer', avg_wer, on_step=True, on_epoch=False, prog_bar=True, logger=True)
         self.log('train_loss', loss, on_step=True, on_epoch=False, prog_bar=True, logger=True)
         return loss
     
+
     def validation_step(self, batch, batch_idx):
+        self.model.eval()
         loss, y_pred, labels, label_lengths = self._common_step(batch, batch_idx)
-
+        # print('Label len:',label_lengths[1])
         # Decode preds for WER and CER
-        val_cer, val_wer = [], []
-        decoded_preds, decoded_targets = GreedyDecoder(y_pred.transpose(0, 1), labels, label_lengths)
-        for j in range(len(decoded_preds)):
-            val_cer.append(cer(decoded_targets[j], decoded_preds[j]))
-            val_wer.append(wer(decoded_targets[j], decoded_preds[j]))
-        avg_cer = sum(val_cer)/len(val_cer)
-        avg_wer = sum(val_wer)/len(val_wer)
+        if batch_idx == 0:
+            val_cer, val_wer = [], []
+            decoded_preds, decoded_targets = GreedyDecoder(y_pred.transpose(0, 1), labels, label_lengths)
+            
+            # print('\nDecoded predictions:', decoded_preds[1])
+            # print('Decoded targets:', decoded_targets[1])
 
-        self.log('val_loss', loss, on_step=True, on_epoch=False, prog_bar=True, logger=True)
-        self.log('val_cer', avg_cer, on_step=True, on_epoch=False, prog_bar=True, logger=True)
-        self.log('val_wer', avg_wer, on_step=True, on_epoch=False, prog_bar=True, logger=True)
+            for j in range(len(decoded_preds)):
+                val_cer.append(cer(decoded_targets[j], decoded_preds[j]))
+                val_wer.append(wer(decoded_targets[j], decoded_preds[j]))
+            avg_cer = sum(val_cer)/len(val_cer)
+            avg_wer = sum(val_wer)/len(val_wer)
+
+            
+            self.log('val_cer', avg_cer, on_step=True, on_epoch=False, prog_bar=True, logger=True)
+            self.log('val_wer', avg_wer, on_step=True, on_epoch=False, prog_bar=True, logger=True)
+        self.log('val_loss', loss, on_step=True, on_epoch=True, prog_bar=True, logger=True, batch_size=self.args.batch_size)
         return loss
 
     def predict_step(self, batch, batch_idx):
         pass
+
 
 
 def main(args):
@@ -99,9 +128,9 @@ def main(args):
         "n_cnn_layers": 3,
         "n_rnn_layers": 5,
         "rnn_dim": 512,
-        "n_class": 29,
-        "n_feats": 64,
-        "stride":2,
+        "n_class": 29,        # Output Class
+        "n_feats": 64,        # n-mels
+        "stride": 2,
         "dropout": 0.2,
         "learning_rate": args.learning_rate,
         "batch_size": args.batch_size,
@@ -125,6 +154,7 @@ def main(args):
     # NOTE: Define Trainer callbacks
     checkpoint_callback = ModelCheckpoint(
         monitor='val_loss',
+        dirpath="./saved_checkpoint/",
         filename='ASR-{epoch:02d}-{val_loss:.2f}',
         save_top_k=1,
         mode='min'
@@ -172,4 +202,3 @@ if __name__  == "__main__":
     args = parser.parse_args()
     main(args)
 
-# !python3 train.py --train_json "dataset/train.json" --valid_json "dataset/test.json" -w 2 --epochs 3 --batch_size 2 -lr 5e-4

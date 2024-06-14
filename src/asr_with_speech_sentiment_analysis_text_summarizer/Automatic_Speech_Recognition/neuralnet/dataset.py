@@ -11,7 +11,7 @@ from utils import TextTransform
 
 
 class LogMelSpec(nn.Module):
-    def __init__(self, sample_rate=16000, n_mels=64, win_length=160, hop_length=80):
+    def __init__(self, sample_rate=8000, n_mels=64, win_length=160, hop_length=80):
         super(LogMelSpec, self).__init__()
         self.transform = transforms.MelSpectrogram(sample_rate=sample_rate, n_mels=n_mels,
                                                    win_length=win_length, hop_length=hop_length)
@@ -83,34 +83,6 @@ class CustomAudioDataset(Dataset):
         
     def describe(self):
         return self.data.describe()
-
-
-
-def data_processing(data):
-    spectrograms = []
-    labels = []
-    input_lengths = []
-    label_lengths = []
-    for (spectrogram, label, input_length, label_length) in data:
-        if spectrogram is None:
-            continue
-
-        spectrograms.append(spectrogram.squeeze(0).transpose(0, 1))
-        # print(len(spectrograms))
-        # print(f'Label Check: {label}')
-        labels.append(torch.Tensor(label))
-        input_lengths.append(spectrogram.shape[-1] // 2)
-        label_lengths.append(len(label))
-    # Print the shapes of spectrograms before padding
-    # for spec in spectrograms:
-    #     print("Spec before padding:", spec.shape)
-
-    # NOTE: https://www.geeksforgeeks.org/how-do-you-handle-sequence-padding-and-packing-in-pytorch-for-rnns/
-    spectrograms = nn.utils.rnn.pad_sequence(spectrograms, batch_first=True).unsqueeze(1).transpose(2, 3)
-    # print('Padded Spectrograms: ', spectrograms.shape)
-    labels = nn.utils.rnn.pad_sequence(labels, batch_first=True)
-
-    return spectrograms, labels, input_lengths, label_lengths
     
 
 # Lightning Data Module
@@ -128,12 +100,38 @@ class SpeechDataModule(pl.LightningDataModule):
         self.test_dataset = CustomAudioDataset(self.test_json, 
                                                valid=True)
         
-    
+    def data_processing(self, data):
+        spectrograms = []
+        labels = []
+        input_lengths = []
+        label_lengths = []
+        for (spectrogram, label, input_length, label_length) in data:
+            if spectrogram is None:
+                continue
+
+            spectrograms.append(spectrogram.squeeze(0).transpose(0, 1))
+            # print(len(spectrograms))
+            # print(f'Label Check: {label}')
+            labels.append(torch.Tensor(label))
+            input_lengths.append(spectrogram.shape[-1] // 2)
+            label_lengths.append(len(label))
+        # Print the shapes of spectrograms before padding
+        # for spec in spectrograms:
+        #     print("Spec before padding:", spec.shape)
+
+        # NOTE: https://www.geeksforgeeks.org/how-do-you-handle-sequence-padding-and-packing-in-pytorch-for-rnns/
+        spectrograms = nn.utils.rnn.pad_sequence(spectrograms, batch_first=True).unsqueeze(1).transpose(2, 3)
+        # print('Padded Spectrograms: ', spectrograms.shape)
+        labels = nn.utils.rnn.pad_sequence(labels, batch_first=True)
+
+        return spectrograms, labels, input_lengths, label_lengths
+
+
     def train_dataloader(self):
         return DataLoader(self.train_dataset, 
                           batch_size=self.batch_size, 
                           shuffle=True, 
-                          collate_fn=lambda x: data_processing(x), 
+                          collate_fn=lambda x: self.data_processing(x), 
                           num_workers=self.num_workers, 
                           pin_memory=True)      # Optimizes data-transfer speed for CUDA
 
@@ -141,6 +139,6 @@ class SpeechDataModule(pl.LightningDataModule):
         return DataLoader(self.test_dataset, 
                           batch_size=self.batch_size, 
                           shuffle=False,
-                          collate_fn=lambda x: data_processing(x), 
+                          collate_fn=lambda x: self.data_processing(x), 
                           num_workers=self.num_workers, 
                           pin_memory=True)

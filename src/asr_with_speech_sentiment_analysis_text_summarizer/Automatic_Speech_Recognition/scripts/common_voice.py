@@ -42,11 +42,10 @@ def main(args):
                 # Defining Source and Destination for conversion
                 src = directory + '/clips/' + file_name
                 dest = os.path.join(clips_directory, clips_name)
-                # print(f'Source Location: {src}\nDestination Location: {dest}')
                 
                 # Conversion: MP3 ---> WAV
                 sound = AudioSegment.from_mp3(src)      # Take audio clips from source
-                sound = sound.set_frame_rate(16000)     # Set FrameRate/SampleRate to 16000Hz
+                # sound = sound.set_frame_rate(16000)     # Set FrameRate/SampleRate to 16000Hz
                 sound.export(dest, format="wav")        # Export audio clips to destination
                 index += 1
 
