@@ -11,3 +11,4 @@ scikit-learn
 pandas
 numpy
 comet-ml
+sox

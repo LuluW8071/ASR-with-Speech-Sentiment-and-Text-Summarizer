@@ -18,7 +18,8 @@ recorded_audio.wav
 
 # ASR
 dataset
-converted_dataset
+converted_clips
+cv-corpus-17.0-delta-2024-03-15-en/
 
 # -------------
 
