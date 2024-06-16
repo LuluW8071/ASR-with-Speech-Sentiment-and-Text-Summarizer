@@ -11,10 +11,10 @@ from utils import TextTransform
 
 
 class LogMelSpec(nn.Module):
-    def __init__(self, sample_rate=16000, n_mels=64, win_length=400, hop_length=160):
+    def __init__(self, sample_rate=16000, n_mels=128, hop_length=350, n_fft=1024):
         super(LogMelSpec, self).__init__()
         self.transform = transforms.MelSpectrogram(sample_rate=sample_rate, n_mels=n_mels,
-                                                   win_length=win_length, hop_length=hop_length)
+                                                  hop_length=hop_length, n_fft = n_fft)
 
     def forward(self, x):
         x = self.transform(x)  # mel spectrogram
@@ -40,7 +40,7 @@ class CustomAudioDataset(Dataset):
             self.audio_transforms = torch.nn.Sequential(
                 LogMelSpec(),
                 transforms.FrequencyMasking(freq_mask_param=30),
-                transforms.TimeMasking(time_mask_param=100)
+                transforms.TimeMasking(time_mask_param=70)
             )
 
 
