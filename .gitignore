@@ -20,6 +20,8 @@ recorded_audio.wav
 dataset
 converted_clips
 cv-corpus-17.0-delta-2024-03-15-en/
+deep_speech_model.py
+deep_speech_train.py
 
 # -------------
 
