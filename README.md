@@ -25,7 +25,9 @@ This project aims to develop an advanced system that integrates Automatic Speech
 
 ## Project Architecture
 
-
+### 1. ASR(Automatic Speech Recognition)
+#### Base Model (CNN1D-2LSTM)
+![CNN-2LSTM ASR](docs/asr_base_model.png)
 ## High Level Next Steps
 
 
