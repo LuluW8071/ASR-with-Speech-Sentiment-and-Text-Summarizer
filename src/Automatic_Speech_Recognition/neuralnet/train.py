@@ -1,7 +1,6 @@
-from comet_ml import Experiment, ExistingExperiment
 import pytorch_lightning as pl
-import argparse
 import os 
+import argparse
 import torch
 import torch.nn.functional as F
 import torch.optim as optim
@@ -14,7 +13,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from dataset import SpeechDataModule
-from src.Automatic_Speech_Recognition.neuralnet.model import SpeechRecognition
+from model import SpeechRecognition
 from utils import GreedyDecoder
 from scorer import wer, cer
 
@@ -26,7 +25,7 @@ class ASRTrainer(pl.LightningModule):
         self.train_loader_len = train_loader_len
 
         # Metrics
-        self.loss_fn = nn.CTCLoss(blank=28, zero_infinity=True)    # unique char_map_str = 28 in utils.py
+        self.loss_fn = nn.CTCLoss(blank=29, zero_infinity=True)
 
     def forward(self, x, hidden):
         return self.model(x, hidden)
@@ -55,23 +54,24 @@ class ASRTrainer(pl.LightningModule):
 
         # Interval for CER and WER calculation
         interval = self.train_loader_len // 5
-        cer, wer = [], []
+        train_cer, train_wer = [], []
 
-        if batch_idx%interval == 0:
+        if batch_idx % interval == 0:
             decoded_preds, decoded_targets = GreedyDecoder(y_pred.transpose(0, 1), labels, label_lengths)
             # print('\nTrain Decoded predictions:', decoded_preds[0:5])
             # print('Train Decoded targets:', decoded_targets[0:5])
             for j in range(len(decoded_preds)):
-                cer.append(cer(decoded_targets[j], decoded_preds[j]))
-                wer.append(wer(decoded_targets[j], decoded_preds[j]))
-            avg_cer = sum(cer) / len(cer)
-            avg_wer = sum(wer) / len(wer)
+                train_cer.append(cer(decoded_targets[j], decoded_preds[j])) 
+                train_wer.append(wer(decoded_targets[j], decoded_preds[j]))
+            avg_cer = sum(train_cer) / len(train_cer)
+            avg_wer = sum(train_wer) / len(train_wer)
 
             # Log metrics 
             self.log('cer', avg_cer, on_step=True, on_epoch=False, prog_bar=True, logger=True)
             self.log('wer', avg_wer, on_step=True, on_epoch=False, prog_bar=True, logger=True)
         self.log('train_loss', loss, on_step=True, on_epoch=False, prog_bar=True, logger=True)
         return loss
+
     
     def validation_step(self, batch, batch_idx):
         loss, y_pred, labels, label_lengths = self._common_step(batch, batch_idx)
@@ -114,8 +114,8 @@ def main(args):
     data_module.setup()
     train_loader_len = len(data_module.train_dataloader())    # To pass on scheduler
     
+    # Log hyperparams of model and setup trainer
     h_params = SpeechRecognition.hyper_parameters
-
     model = SpeechRecognition(**h_params)
     speech_trainer = ASRTrainer(model=model, args=args, train_loader_len=train_loader_len) 
 
@@ -163,11 +163,11 @@ if __name__ == "__main__":
     # General Train Hyperparameters
     parser.add_argument('--epochs', default=20, type=int, help='number of total epochs to run')
     parser.add_argument('--batch_size', default=32, type=int, help='size of batch')
-    parser.add_argument('-lr','--learning_rate', default=1e-3, type=float, help='learning rate')
+    parser.add_argument('-lr','--learning_rate', default=2e-5, type=float, help='learning rate')
     parser.add_argument('--precision', default='16-mixed', type=str, help='precision')
     
     # Params
-    parser.add_argument('--steps', default=200, type=int, help='log every n steps')
+    parser.add_argument('--steps', default=1000, type=int, help='log every n steps')
     
     # Checkpoint path
     parser.add_argument('--checkpoint_path', default=None, type=str, help='path to a checkpoint file to resume training')

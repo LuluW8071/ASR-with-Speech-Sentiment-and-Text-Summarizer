@@ -21,11 +21,11 @@ class ActDropNormCNN1D(nn.Module):
 
 class SpeechRecognition(nn.Module):
     hyper_parameters = {
-        "num_classes": 29,
-        "n_feats": 128,
+        "num_classes": 30,  # output_class
+        "n_feats": 128,     # n_mels
         "dropout": 0.2,
         "hidden_size": 1024,
-        "num_layers": 2
+        "num_layers": 2     # RNN Layers
     }
 
     def __init__(self, hidden_size, num_classes, n_feats, num_layers, dropout):
@@ -37,24 +37,24 @@ class SpeechRecognition(nn.Module):
             ActDropNormCNN1D(n_feats, dropout),
         )
         self.dense = nn.Sequential(
-            nn.Linear(n_feats, 128),
-            nn.LayerNorm(128),
+            nn.Linear(n_feats, 256),
+            nn.LayerNorm(256),
             nn.GELU(),
             nn.Dropout(dropout),
-            nn.Linear(128, 128),
-            nn.LayerNorm(128),
+            nn.Linear(256, 256),
+            nn.LayerNorm(256),
             nn.GELU(),
             nn.Dropout(dropout),
         )
-        self.lstm = nn.LSTM(input_size=128, hidden_size=hidden_size,
+        self.lstm = nn.LSTM(input_size=256, hidden_size=hidden_size,
                             num_layers=num_layers, dropout=0.2,
-                            bidirectional=False)
-        self.layer_norm2 = nn.LayerNorm(hidden_size)
+                            bidirectional=True)
+        self.layer_norm2 = nn.LayerNorm(hidden_size * 2)         # Adjust for bidirectionality
         self.dropout2 = nn.Dropout(dropout)
-        self.final_fc = nn.Linear(hidden_size, num_classes)
+        self.final_fc = nn.Linear(hidden_size * 2, num_classes)  # Adjust for bidirectionality
 
     def _init_hidden(self, batch_size):
-        n, hs = self.num_layers, self.hidden_size
+        n, hs = self.num_layers * 2, self.hidden_size            # num_layers * num_directions
         return (torch.zeros(n*1, batch_size, hs),
                 torch.zeros(n*1, batch_size, hs))
 

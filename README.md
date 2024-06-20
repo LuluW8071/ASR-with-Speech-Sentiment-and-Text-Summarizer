@@ -10,6 +10,12 @@
 
 This project aims to develop an advanced system that integrates Automatic Speech Recognition (ASR), speech sentiment analysis, and text summarization. The system will address challenges in accurate speech recognition across diverse accents and noisy environments, providing real-time emotional tone interpretation (sentiment analysis), and generating summaries to retain essential information. Targeting applications such as customer service, business meetings, media, and education, this project seeks to enhance documentation, understanding, and emotional context in communication.
 
+## Intermediate Goals
+
+- [x] Baseline Model for ASR
+- [ ] Baseline Model for SER
+- [ ] Baseline Model for Text Summarizer
+
 ## Goals
 
 - [ ] Accurate ASR system for diverse accents and operable in noisy environments.
@@ -26,8 +32,23 @@ This project aims to develop an advanced system that integrates Automatic Speech
 ## Project Architecture
 
 ### 1. ASR(Automatic Speech Recognition)
-#### Base Model (CNN1D-2LSTM)
-![CNN-2LSTM ASR](docs/asr_base_model.png)
+
+| Base Model </br>(1CNN1D - Dense_Layers - 2Bi_LSTM)              | Final Model </br>  |
+|---------------------|-----------------------------------------------|
+| ![Base Model](docs/asr_base_model.jpeg)          |         ![Code in Progress](https://img.shields.io/badge/status-in_progress-red.svg)                         |
+
+### 2. SER(Speech Emotion Recognition)
+
+| Base Model </br>            | Final Model </br>  |
+|---------------------|-----------------------------------------------|
+| ![Code in Progress](https://img.shields.io/badge/status-in_progress-red.svg)          |         ![Code in Progress](https://img.shields.io/badge/status-in_progress-red.svg) 
+
+### 3. Text Summarizer
+
+| Base Model </br>            | Final Model </br>  |
+|---------------------|-----------------------------------------------|
+| ![Code in Progress](https://img.shields.io/badge/status-in_progress-red.svg)          |         ![Code in Progress](https://img.shields.io/badge/status-in_progress-red.svg) 
+
 ## High Level Next Steps
 
 
@@ -61,60 +82,45 @@ If you have other packages installed in the environment that are no longer neede
 Before installing dependencies from `requirements.txt`, make sure you have installed 
 - [**CUDA ToolKit v11.8/12.1**](https://developer.nvidia.com/cuda-toolkit-archive)
 - [**PyTorch**](https://pytorch.org/)
-
-
-- [FFmpeg](https://www.ffmpeg.org/)
-
-    - **For Windows:**
-        ```bash
-        # Extract the archive
-        ffmpeg/bin/
-        # Edit environment variables to insert path 
-        path/to/ffmpeg/bin/
-        
-        # Open terminal and verify installation
-        ffmpeg -version
-        ```
+- [**SOX**](https://sourceforge.net/projects/sox/)
     - **For Linux:**
         ```bash
-        # Update package list and install FFmpeg
+        # Update package list and install SOX
         sudo apt update
-        sudo apt install ffmpeg
+        sudo apt install sox libsox-fmt-all
 
         # Verify installation
-        ffmpeg -version
+        sox --version
         ```
 
 ```bash
 pip install -r requirements.txt
 ```
 
-#### 2. Configure Comet-ML Integration
+#### 2. Configure [**Comet-ML**](https://www.comet.com/site/) Integration
 
-To enable real-time loss curve plotting, system metrics tracking, and confusion matrix visualization, follow these steps:
+Replace `dummy_key` with your actual Comet-ML API key and project name in the `.env` file to enable real-time loss curve plotting, system metrics tracking, and confusion matrix visualization.
 
-1. **Sign Up for Comet-ML**: Visit [Comet](https://www.comet.com/site/) to sign up and obtain your API key.
-2. **Edit `.env` File**: Replace `dummy_key` with your actual Comet-ML API key and project name in the `.env` file.
-
-    ```python
-    API_KEY = "dummy_key"
-    PROJECT_NAME = "dummy_key"
-    ```
+```python
+API_KEY = "dummy_key"
+PROJECT_NAME = "dummy_key"
+```
 
 ## Usage Instructions
 
 ### ASR
 
 1. Audio Conversion
-
+    > - `--not-convert` if you don't want audio conversion
+    > - `--output_format "wav"` if you want audio conversion in WAV format 
     ```bash
-    py common_voice.py --file_path "file_path/to/validated.tsv" --save_json_path "file_path/to/save/json" --percent 10
+    py common_voice.py --file_path "file_path/to/validated.tsv" --save_json_path "file_path/to/save/json" --percent 10 -w 4
     ```
 
 2. Train Model
-
+    > - `--checkpoint_path "path/to/checkpoint_file"` to load pre-trained model and fine tune on it.
     ```bash
-    py train.py --train_json "dataset/train.json" --valid_json "dataset/test.json" -w 2 --epochs 20 --batch_size 128 -lr 5e-4
+    py train.py --train_json "path/to/train.json" --valid_json "path/to/test.json" -w 4 --epochs 20 --batch_size 128 -lr 2e-4
     ```
 
 ### Speech Sentiment

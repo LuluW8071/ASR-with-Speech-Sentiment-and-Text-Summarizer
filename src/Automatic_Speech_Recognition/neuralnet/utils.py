@@ -32,6 +32,7 @@ class TextTransform:
         x 25
         y 26
         z 27
+        . 28
         """
         self.char_map = {}
         self.index_map = {}
@@ -45,7 +46,7 @@ class TextTransform:
     def text_to_int(self, text):
         """ Use a character map and convert text to an integer sequence """
         int_sequence = []
-        special_chars = {' ', ':', '!', '.', ',', '-', '"', "’", "‘", ';', '—', '?'}     # Some special chars 
+        special_chars = {' '}     # Some special chars 
         for c in text:
             if c in special_chars:
                 ch = self.char_map['<SPACE>']
@@ -68,7 +69,7 @@ class TextTransform:
 # Initialize TextProcess for text processing
 text_transform = TextTransform()
 
-def GreedyDecoder(output, labels, label_lengths, blank_label=28, collapse_repeated=True):
+def GreedyDecoder(output, labels, label_lengths, blank_label=29, collapse_repeated=True):
     # print(output)
     arg_maxes = torch.argmax(output, dim=2)
     # print('Argmax indices: ', arg_maxes[0]) 
