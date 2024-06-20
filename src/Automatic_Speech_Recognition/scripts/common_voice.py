@@ -8,13 +8,19 @@ from tqdm import tqdm
 from multiprocessing.pool import ThreadPool
 from pathlib import Path
 
+# Function to clean text by removing specified characters
+def clean_text(text):
+    characters_to_remove =':!,-"‘’;—?'
+    translator = str.maketrans('', '', characters_to_remove)
+    return text.translate(translator)
+
 def process_file(row, clips_directory, directory, output_format):
-    file_name = row['path']                             # Original file location
+    file_name = row['path']  # Original file location
     clips_name = file_name.rpartition('.')[0] + '.' + output_format  # Converted file extension: FLAC
-    text = row['sentence']                              # Extract Sentences
+    text = clean_text(row['sentence'])  # Clean the sentence
     audio_path = os.path.join(directory, 'clips', file_name)
     output_audio_path = os.path.join(clips_directory, clips_name)
-    
+
     # Convert MP3 to FLAC using Sox
     tfm = sox.Transformer()
     tfm.rate(samplerate=16000)
@@ -23,7 +29,7 @@ def process_file(row, clips_directory, directory, output_format):
     return {'key': clips_directory + '/' + clips_name, 'text': text}
 
 def main(args):
-    data = []   # Empty list to store clips and sentences
+    data = []  # Empty list to store clips and sentences
     directory = args.file_path.rpartition('/')[0]
     percent = args.percent
 
@@ -35,24 +41,21 @@ def main(args):
 
     with open(args.file_path, encoding="utf-8") as f:
         length = sum(1 for _ in f) - 1
-    
+
     with open(args.file_path, newline='', encoding="utf-8") as csv_file:
         reader = csv.DictReader(csv_file, delimiter='\t')
-        index = 1
         data_to_process = [(row, clips_directory, directory, args.output_format) for row in reader]
 
     if args.convert:
         print(f"{length} files found. Converting MP3 to {args.output_format.upper()} using {args.num_workers} workers.")
         with ThreadPool(args.num_workers) as pool:
             data = list(tqdm(pool.imap(lambda x: process_file(*x), data_to_process), total=length))
-
     else:
         for row in data_to_process:
             file_name = row[0]['path']
             clips_name = file_name.rpartition('.')[0] + '.' + args.output_format
-            text = row[0]['sentence']
-            data.append({'key': clips_directory + clips_name, 'text': text})
-            index += 1
+            text = clean_text(row[0]['sentence'])
+            data.append({'key': clips_directory + '/' + clips_name, 'text': text})
 
     # Splitting data into train and test set and saving into JSON file
     random.shuffle(data)
@@ -61,11 +64,11 @@ def main(args):
     train_data = data[:int(length * (1 - percent / 100))]
     test_data = data[int(length * (1 - percent / 100)):]
 
-    with open(os.path.join(args.save_json_path, 'train.json'), 'w') as f:
-        json.dump(train_data, f, indent=4)
+    with open(os.path.join(args.save_json_path, 'train.json'), 'w', encoding='utf-8') as f:
+        json.dump(train_data, f, ensure_ascii=False, indent=4)
 
-    with open(os.path.join(args.save_json_path, 'test.json'), 'w') as f:
-        json.dump(test_data, f, indent=4)
+    with open(os.path.join(args.save_json_path, 'test.json'), 'w', encoding='utf-8') as f:
+        json.dump(test_data, f, ensure_ascii=False, indent=4)
 
     print("Done!")
 
@@ -86,7 +89,7 @@ if __name__ == "__main__":
                         help='indicates that the script should convert mp3 to flac')
     parser.add_argument('--not-convert', dest='convert', action='store_false',
                         help='indicates that the script should not convert mp3 to flac')
-    parser.add_argument('--num_workers', type=int, default=2,
+    parser.add_argument('-w','--num_workers', type=int, default=2,
                         help='number of worker threads for processing')
     parser.add_argument('--output_format', type=str, default='flac',
                         help='output audio format (flac or wav)')
