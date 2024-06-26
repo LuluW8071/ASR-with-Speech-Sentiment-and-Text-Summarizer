@@ -1,12 +1,14 @@
 import os
 import argparse
 import csv
-import librosa
+import random
 import numpy as np
 import subprocess
 from concurrent.futures import ThreadPoolExecutor
 from tqdm import tqdm
-import random
+
+import soundfile as sf
+import librosa
 
 # Function to apply SoX effect for converting sample rate
 def apply_sox_effect(input_file, output_file):
@@ -84,7 +86,7 @@ def process_file(row, base_directory, output_directory):
             augmented_data, sr = aug_func(audio_data, sr)
             output_name = f"{base_name}_{aug_name}.flac"
             output_path = os.path.join(output_directory, output_name)
-            apply_sox_effect(audio_path, output_path)  # Use sox to write FLAC files
+            sf.write(output_path, augmented_data, sr, format='flac')  # Use soundfile to write FLAC files
             processed_data.append({
                 'Path': os.path.abspath(output_path),
                 'Emotions': row['emotions']

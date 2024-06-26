@@ -7,9 +7,9 @@ from tqdm import tqdm
 from multiprocessing.pool import ThreadPool
 
 def process_file(row, clips_directory, directory, output_format):
-    file_name = row['Path']
+    file_name = row['path']
     clips_name = os.path.basename(os.path.splitext(file_name)[0]) + '.' + output_format
-    sentiment = row['Emotions']
+    sentiment = row['emotion']
     audio_path = os.path.join(directory, file_name)
     output_audio_path = os.path.join(clips_directory, clips_name)
     
@@ -39,17 +39,9 @@ def main(args):
         reader = csv.DictReader(csv_file, delimiter=',')
         data_to_process = [(row, clips_directory, directory, args.output_format) for row in reader]
 
-    if args.convert:
-        print(f"{length} files found. Converting to {args.output_format.upper()} using {args.num_workers} workers.")
-        with ThreadPool(args.num_workers) as pool:
-            data = list(tqdm(pool.imap(lambda x: process_file(*x), data_to_process), total=length))
-    else:
-        for row in data_to_process:
-            file_name = row[0]['Path']
-            clips_name = os.path.basename(os.path.splitext(file_name)[0]) + '.' + args.output_format
-            sentiment = row[0]['Emotions']
-            output_audio_path = os.path.join(clips_directory, clips_name)
-            data.append({'path': output_audio_path, 'emotions': sentiment})
+    print(f"{length} files found. Converting to {args.output_format.upper()} using {args.num_workers} workers.")
+    with ThreadPool(args.num_workers) as pool:
+        data = list(tqdm(pool.imap(lambda x: process_file(*x), data_to_process), total=length))
 
     # Saving the processed data into a single CSV file
     csv_path = os.path.join(args.save_csv_path, 'emotion_dataset.csv')
@@ -71,10 +63,6 @@ if __name__ == "__main__":
                         help='path to one of the .tsv files found in cv-corpus')
     parser.add_argument('--save_csv_path', type=str, default=None, required=True,
                         help='path to the dir where the csv file is supposed to be saved')
-    parser.add_argument('--convert', default=True, action='store_true',
-                        help='indicates that the script should convert mp3 to flac or wav')
-    parser.add_argument('--not-convert', dest='convert', action='store_false',
-                        help='indicates that the script should not convert mp3 to flac or wav')
     parser.add_argument('-w', '--num_workers', type=int, default=2,
                         help='number of worker threads for processing')
     parser.add_argument('--output_format', type=str, default='flac',
