@@ -1,50 +1,70 @@
-import pytorch_lightning as pl
-from torch import nn
+import torch
+import torch.nn as nn
+from torch.nn import functional as F
 
 
-class neuralnet(pl.LightningModule):
-    def __init__(self, input_size, output_shape):
-        super().__init__()
-        self.conv_block_1 = nn.Sequential(
-            nn.Conv1d(input_size, 512, kernel_size=5, stride=2, padding=2),
-            nn.ReLU(),
-            nn.Conv1d(512, 1024, kernel_size=5, stride=2, padding=2),
-            nn.ReLU(),
-            nn.MaxPool1d(kernel_size=2, stride=2),
-            nn.BatchNorm1d(1024),
-            nn.Dropout(0.2)
-        )
-        self.conv_block_2 = nn.Sequential(
-            nn.Conv1d(1024, 512, kernel_size=5, stride=2, padding=2),
-            nn.ReLU(),
-            nn.Conv1d(512, 256, kernel_size=5, stride=1, padding=2),
-            nn.ReLU(),
-            nn.MaxPool1d(kernel_size=2, stride=2),
-            nn.BatchNorm1d(256),
-            nn.Dropout(0.2)
-        )
-        self.conv_block_3 = nn.Sequential(
-            nn.Conv1d(256, 128, kernel_size=5, stride=1, padding=2),
-            nn.ReLU(),
-            nn.MaxPool1d(kernel_size=2, stride=2),
-            nn.BatchNorm1d(128),
-            nn.Dropout(0.2)
-        )
-        self.flatten = nn.Flatten()
-        self.fc1 = nn.Linear(4736, 512)
-        self.fc2 = nn.Linear(512, output_shape)
-        self.dropout = nn.Dropout(0.2)
-        self.relu = nn.ReLU()
+class ActDropNormCNN1D(nn.Module):
+    def __init__(self, n_feats):
+        super(ActDropNormCNN1D, self).__init__()
+        self.norm = nn.BatchNorm1d(n_feats)
+    
+    def forward(self, x):
+        x = x.transpose(1, 2)
+        x = F.gelu(self.norm(x))
+        return x
 
+
+class CNN1D(nn.Module):
+    def __init__(self, n_feats):
+        super(CNN1D, self).__init__()
+        self.cnn1 = nn.Sequential(
+            nn.Conv1d(n_feats, n_feats, kernel_size=5, stride=2, padding=5//2),
+            ActDropNormCNN1D(n_feats),
+        )
 
     def forward(self, x):
-        x = self.conv_block_1(x)
-        x = self.conv_block_2(x)
-        x = self.conv_block_3(x)
-        x = self.flatten(x)
-        x = self.fc1(x)
-        x = self.relu(x)
+        x = x.squeeze(1)  # (batch_size, 1, n_feats, time)
+        x = self.cnn1(x)  # (batch_size, n_feats, new_time1)
+        return x
+
+
+class MLP(nn.Module):
+    def __init__(self):
+        super(MLP, self).__init__()
+        self.dense = nn.Sequential(
+            nn.Linear(16000, 1024),
+            nn.BatchNorm1d(1024),
+            nn.GELU(),
+            nn.Linear(1024, 64),
+            nn.BatchNorm1d(64),
+            nn.GELU(),
+        )
+
+    def forward(self, x):
+        x = self.dense(x)
+        return x
+
+
+class SpeechEmotionRecognition(nn.Module):
+    hyper_parameters = {
+        "num_classes": 7,   # output_class
+        "n_feats": 128,     # n_mels
+        "dropout": 0.2
+    }
+
+    def __init__(self, num_classes, n_feats, dropout):
+        super(SpeechEmotionRecognition, self).__init__()
+        self.cnn = CNN1D(n_feats=n_feats)
+        self.mlp = MLP()
+        self.dropout = nn.Dropout(dropout)
+        self.final_fc = nn.Linear(64, num_classes)
+
+    def forward(self, x):
+        x = self.cnn(x)
+        x = x.flatten(1, -1)  # flatten to (batch_size, n_feats)
+        # print(x.shape)
+        x = self.mlp(x)
         x = self.dropout(x)
-        x = self.fc2(x)
+        x = self.final_fc(x)
         return x
 

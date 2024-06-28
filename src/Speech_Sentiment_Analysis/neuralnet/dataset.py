@@ -1,74 +1,140 @@
-import pandas as pd
-import numpy as np
-from sklearn.preprocessing import OneHotEncoder
-import torch
-from torch.utils.data import Dataset, DataLoader, random_split
 import pytorch_lightning as pl
+import pandas as pd
+import torchaudio
+import torch
+import torch.nn as nn
+import torchaudio.transforms as transforms
 
-class EmotionDataset(Dataset):
-    def __init__(self, file_path):
+from torch.nn import functional as F
+from torch.utils.data import DataLoader, Dataset
+
+
+# Custom Mel Spectrogram Transform Class
+class LogMelSpec(nn.Module):
+    def __init__(self, sample_rate=16000, n_mels=128, hop_length=380, n_fft=1024):
+        super(LogMelSpec, self).__init__()
+        self.transform = transforms.MelSpectrogram(sample_rate=sample_rate, n_mels=n_mels,
+                                                   hop_length=hop_length, n_fft=n_fft)
+
+    def forward(self, x):
+        x = self.transform(x)     # mel spectrogram
+        x = torch.log(x + 1e-14)  # logarithmic, add small value to avoid inf
+        return x
+
+
+# Custom Dataset Class
+class CustomAudioDataset(Dataset):
+    def __init__(self, file_path, num_samples, target_length, valid=False):
         self.file_path = file_path
-        self._prepare_data()
+        self.num_samples = num_samples
+        self.target_length = target_length
+        print(f'Loading csv data from {file_path}')
+        self.data = pd.read_csv(self.file_path)
 
-    def _prepare_data(self):
-        """ Load Data and One Hot Encode the Labels """
-        Emotions = pd.read_csv(self.file_path)
-        Emotions = Emotions.fillna(0)      
+        # Map emotions to numerical labels
+        self.class_labels = pd.Categorical(self.data['Emotions']).codes
+        self.valid = valid
 
-        X = Emotions.iloc[:, :-1].values
-        Y = Emotions['Emotions'].values
-
-        # OneHotEncode labels
-        encoder = OneHotEncoder()
-        Y = encoder.fit_transform(np.array(Y).reshape(-1, 1)).toarray()
-        
-        # Check endoded labels 
-        # encoded_labels = encoder.categories_[0]
-        # for i, label in enumerate(encoded_labels):
-        #     print(f"Column {i}: {label}")
-
-        # Convert to PyTorch tensors
-        # print(X.shape, Y.shape)
-        self.X = torch.tensor(X, dtype=torch.float32)
-        self.Y = torch.tensor(Y, dtype=torch.float32)
-       
-
-    def __getitem__(self, index):
-        # print(self.X[index].shape, self.Y[index].shape)
-        return self.X[index], self.Y[index]
+        if valid:
+            self.audio_transforms = nn.Sequential(
+                LogMelSpec()
+            )
+        else:
+            self.audio_transforms = nn.Sequential(
+                LogMelSpec(),
+                transforms.FrequencyMasking(freq_mask_param=30),
+                transforms.TimeMasking(time_mask_param=50)
+            )
 
     def __len__(self):
-        return len(self.X)
+        return len(self.data)
 
-class EmotionDataModule(pl.LightningDataModule):
-    def __init__(self, file_path, batch_size, num_workers):
+    def __getitem__(self, idx):
+        item = self.data.iloc[idx]
+        file_path = item['Path']
+
+        try:
+            waveform, _ = torchaudio.load(file_path)
+
+            class_label = self.class_labels[idx]
+            label = torch.tensor(class_label).long()
+
+            spectrogram = self.audio_transforms(waveform)           # (channel, feature, time)
+            spectrogram = self._mix_down_if_necessary(spectrogram)  # make mono channel if dual channel is present 
+            spectrogram = self._right_pad_spectrogram(spectrogram)  # right padd if necessary
+
+            if spectrogram.shape[0] > 1:
+                raise Exception('\ndual channel, skipping audio file %s' % file_path)
+            if spectrogram.shape[2] > self.target_length:
+                spectrogram = spectrogram[:, :, :self.target_length]
+
+            return spectrogram, label
+
+        # Returning the previous sample if an exception occurs
+        except Exception as e:
+            print(str(e), file_path)
+            return self.__getitem__(idx - 1 if idx != 0 else idx + 1)
+    
+    def _right_pad_spectrogram(self, spectrogram):
+        length = spectrogram.shape[2]
+        if length < self.target_length:
+            num_missing_samples = self.target_length - length
+            last_dim_padding = (0, num_missing_samples)
+            spectrogram = F.pad(spectrogram, last_dim_padding)
+        return spectrogram
+
+    # Make it mono-channel if clip is in dual-channel
+    def _mix_down_if_necessary(self, spectrogram):
+        if spectrogram.shape[0] > 1:
+            spectrogram = torch.mean(spectrogram, dim=0, keepdim=True)
+        return spectrogram
+    
+    def describe(self):
+        return self.data.describe()
+
+
+# Lightning Data Module
+class SpeechDataModule(pl.LightningDataModule):
+    def __init__(self, batch_size, train_csv, test_csv, num_workers, num_samples=16000, target_length=250):
         super().__init__()
-        self.file_path = file_path
         self.batch_size = batch_size
+        self.train_csv = train_csv
+        self.test_csv = test_csv
         self.num_workers = num_workers
-
-    def prepare_data(self):
-        # No need for explicit preparation
-        # as it's done in EmotionDatasetc custom dataloader
-        pass 
+        self.num_samples = num_samples
+        self.target_length = target_length
 
     def setup(self, stage=None):
-        # Create Dataset
-        dataset = EmotionDataset(self.file_path)
+        self.train_dataset = CustomAudioDataset(self.train_csv, num_samples=self.num_samples, target_length=self.target_length, valid=False)
+        self.test_dataset = CustomAudioDataset(self.test_csv, num_samples=self.num_samples, target_length=self.target_length, valid=True)
 
-        # RandomSplit the dataset [80:20]
-        dataset_size = len(dataset)
-        val_size = int(0.20 * dataset_size)
-        train_size = dataset_size - val_size
-        # print(val_size, train_size)
-        self.train_data, self.val_data = random_split(dataset, [train_size, val_size])
+    def data_processing(self, data):
+        spectrograms = []
+        labels = []
+        for (spectrogram, label) in data:
+            if spectrogram is None:
+                continue
+
+            spectrograms.append(spectrogram.squeeze(0).transpose(0, 1))
+            labels.append(label.clone().detach().long())
+
+        spectrograms = nn.utils.rnn.pad_sequence(spectrograms, batch_first=True).unsqueeze(1).transpose(2, 3)
+        labels = torch.stack(labels)
+
+        return spectrograms, labels
 
     def train_dataloader(self):
-        return DataLoader(self.train_data, batch_size=self.batch_size, num_workers=self.num_workers, shuffle=True)
-    
+        return DataLoader(self.train_dataset,
+                          batch_size=self.batch_size,
+                          shuffle=True,
+                          collate_fn=lambda x: self.data_processing(x),
+                          num_workers=self.num_workers,
+                          pin_memory=True)
+
     def val_dataloader(self):
-        return DataLoader(self.val_data, batch_size=self.batch_size, num_workers=self.num_workers, shuffle=False)
-    
-    def test_dataloader(self):
-        # Using val_data as test_dataset in the end for final eval
-        return DataLoader(self.val_data, batch_size=self.batch_size, num_workers=self.num_workers, shuffle=False)
+        return DataLoader(self.test_dataset,
+                          batch_size=self.batch_size,
+                          shuffle=False,
+                          collate_fn=lambda x: self.data_processing(x),
+                          num_workers=self.num_workers,
+                          pin_memory=True)

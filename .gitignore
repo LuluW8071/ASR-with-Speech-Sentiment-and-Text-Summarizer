@@ -12,6 +12,7 @@ mlruns/
 
 # --- Project Scripts ---
 # SER
+downsampled_speech
 freeze_model.py
 model/
 recorded_audio.wav
