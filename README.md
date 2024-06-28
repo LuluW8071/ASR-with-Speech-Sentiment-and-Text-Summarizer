@@ -112,25 +112,55 @@ PROJECT_NAME = "dummy_key"
 
 1. Audio Conversion
     > - `--not-convert` if you don't want audio conversion
-    > - `--output_format "wav"` if you want audio conversion in WAV format 
     ```bash
-    py common_voice.py --file_path "file_path/to/validated.tsv" --save_json_path "file_path/to/save/json" --percent 10 -w 4
+    py common_voice.py --file_path "file_path/to/validated.tsv" 
+                       --save_json_path "file_path/to/save/json" 
+                       -w 4
+                       --percent 10 
+                       --output_format 'wav' or 'flac'
     ```
 
 2. Train Model
     > - `--checkpoint_path "path/to/checkpoint_file"` to load pre-trained model and fine tune on it.
     ```bash
-    py train.py --train_json "path/to/train.json" --valid_json "path/to/test.json" -w 4 --epochs 20 --batch_size 128 -lr 2e-4
+    py train.py --train_json "path/to/train.json" 
+                --valid_json "path/to/test.json" 
+                -w 4 
+                --batch_size 128 
+                -lr 2e-4
+                --epochs 20 
     ```
 
 ### Speech Sentiment
 
-1.  Train Model
+1.  Audio Downsample and Augment
 
-    Run the `Speech_Sentiment.ipynb` first to get the *audio_path* and *emotions* table in csv format
+    Run the `Speech_Sentiment.ipynb` first to get the *path* and *emotions* table in csv format and downsample all clips.
 
     ```bash
-    py train.py --file_path "speech_emotion.csv" --epochs 20 --batch_size 64 -w 2 --steps 400
+    py downsample.py --file_path "path/to/audio_file.csv" 
+                     --save_csv_path "output/path" 
+                     -w 4
+                     --output_format 'wav' or 'flac'
+    ```
+
+    ```bash
+    py augment.py --file_path "path/to/emotion_dataset.csv" 
+                  --save_csv_path "output/path" 
+                  -w 4
+                  --percent 20 
+                  
+    ```
+
+2. Train the model
+
+   ```bash
+    py neuralnet/train.py --train_csv "path/to/train.csv" 
+                          --test_csv "path/to/test.csv" 
+                          -w 4 
+                          --batch_size 256 
+                          --epochs 25
+                          -lr 1e-3
     ```
 
 # Data Source
@@ -138,7 +168,7 @@ PROJECT_NAME = "dummy_key"
 | Project            | Dataset Source                            |
 |--------------------|-------------------------------------------|
 | ASR                | [Mozilla Common Voice](https://commonvoice.mozilla.org/en/datasets)                     |
-| Speech Sentiment   | [RAVDESS](https://www.kaggle.com/datasets/uwrfkaggler/ravdess-emotional-speech-audio), [CremaD](https://www.kaggle.com/datasets/ejlok1/cremad)                       |
+| Speech Sentiment   | [RAVDESS](https://www.kaggle.com/datasets/uwrfkaggler/ravdess-emotional-speech-audio), [CremaD](https://www.kaggle.com/datasets/ejlok1/cremad), [TESS](https://www.kaggle.com/datasets/ejlok1/toronto-emotional-speech-set-tess), [SAVEE](https://www.kaggle.com/datasets/ejlok1/surrey-audiovisual-expressed-emotion-savee)                   |
 | Text Summarizer                |                     |
 
 ## Code Structure
