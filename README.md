@@ -41,7 +41,7 @@ This project aims to develop an advanced system that integrates Automatic Speech
 
 | Base Model </br>            | Final Model </br>  |
 |---------------------|-----------------------------------------------|
-| ![Code in Progress](https://img.shields.io/badge/status-in_progress-red.svg)          |         ![Code in Progress](https://img.shields.io/badge/status-in_progress-red.svg) 
+| ![Base Model](docs/ser_base_model.jpeg)          |         ![Code in Progress](https://img.shields.io/badge/status-in_progress-red.svg) 
 
 ### 3. Text Summarizer
 
@@ -176,6 +176,24 @@ PROJECT_NAME = "dummy_key"
 ## Artifacts Location
 
 # Results
+
+### 1. ASR(Automatic Speech Recognition)
+
+| Base Model </br>(1CNN1D - Dense_Layers - 2Bi_LSTM)              | Final Model </br>  |
+|---------------------|-----------------------------------------------|
+|  ![Train in Progress](https://img.shields.io/badge/status-in_progress-red.svg)         |         ![Code in Progress](https://img.shields.io/badge/status-in_progress-red.svg)                         |
+
+### 2. SER(Speech Emotion Recognition)
+
+| Base Model </br>(2CNN1D - Dense_Layers)           | Final Model </br>  |
+|---------------------|-----------------------------------------------|
+| ![SER Confusion Matrix](docs/ser_baseline_conf_mat.jpg)          |         ![Code in Progress](https://img.shields.io/badge/status-in_progress-red.svg) 
+
+### 3. Text Summarizer
+
+| Base Model </br>            | Final Model </br>  |
+|---------------------|-----------------------------------------------|
+| ![Code in Progress](https://img.shields.io/badge/status-in_progress-red.svg)          |         ![Code in Progress](https://img.shields.io/badge/status-in_progress-red.svg) 
 
 ## Metrics Used
 
