@@ -13,8 +13,8 @@ This project aims to develop an advanced system that integrates Automatic Speech
 ## Intermediate Goals
 
 - [x] Baseline Model for ASR
-- [ ] Baseline Model for SER
-- [ ] Baseline Model for Text Summarizer
+- [x] Baseline Model for SER
+- [x] Baseline Model for Text Summarizer
 
 ## Goals
 
@@ -39,15 +39,15 @@ This project aims to develop an advanced system that integrates Automatic Speech
 
 ### 2. SER(Speech Emotion Recognition)
 
-| Base Model </br>            | Final Model </br>  |
+| Base Model</br>(XGBoost)            | Final Model </br>  |
 |---------------------|-----------------------------------------------|
 | ![Code in Progress](https://img.shields.io/badge/status-in_progress-red.svg)          |         ![Code in Progress](https://img.shields.io/badge/status-in_progress-red.svg) 
 
 ### 3. Text Summarizer
 
-| Base Model </br>            | Final Model </br>  |
+| Base Model </br>(T5-Small)           | Final Model </br>  |
 |---------------------|-----------------------------------------------|
-| ![Code in Progress](https://img.shields.io/badge/status-in_progress-red.svg)          |         ![Code in Progress](https://img.shields.io/badge/status-in_progress-red.svg) 
+| ![Base Model](docs/T5_base_model.png)         |         ![Code in Progress](https://img.shields.io/badge/status-in_progress-red.svg) 
 
 ## High Level Next Steps
 
@@ -111,7 +111,7 @@ PROJECT_NAME = "dummy_key"
 ### ASR
 
 1. Audio Conversion
-    > - `--not-convert` if you don't want audio conversion
+    > `--not-convert` if you don't want audio conversion
     ```bash
     py common_voice.py --file_path "file_path/to/validated.tsv" 
                        --save_json_path "file_path/to/save/json" 
@@ -121,7 +121,7 @@ PROJECT_NAME = "dummy_key"
     ```
 
 2. Train Model
-    > - `--checkpoint_path "path/to/checkpoint_file"` to load pre-trained model and fine tune on it.
+    > `--checkpoint_path "path/to/checkpoint_file"` to load pre-trained model and fine tune on it.
     ```bash
     py train.py --train_json "path/to/train.json" 
                 --valid_json "path/to/test.json" 
@@ -163,13 +163,18 @@ PROJECT_NAME = "dummy_key"
                           -lr 1e-3
     ```
 
+### Text Summarization
+
+> Just run the Notebook File in `src/Text_Summarizer` directory. 
+> **Note:** You may need 🤗 Hugging Face Token with write permission file to upload your trained model directly on the 🤗 HF hub.
+
 # Data Source
 
 | Project            | Dataset Source                            |
 |--------------------|-------------------------------------------|
 | ASR                | [Mozilla Common Voice](https://commonvoice.mozilla.org/en/datasets)                     |
 | Speech Sentiment   | [RAVDESS](https://www.kaggle.com/datasets/uwrfkaggler/ravdess-emotional-speech-audio), [CremaD](https://www.kaggle.com/datasets/ejlok1/cremad), [TESS](https://www.kaggle.com/datasets/ejlok1/toronto-emotional-speech-set-tess), [SAVEE](https://www.kaggle.com/datasets/ejlok1/surrey-audiovisual-expressed-emotion-savee)                   |
-| Text Summarizer                |                     |
+| Text Summarizer                |   [XSum](https://huggingface.co/datasets/EdinburghNLP/xsum)            |
 
 ## Code Structure
 
@@ -177,6 +182,36 @@ PROJECT_NAME = "dummy_key"
 
 # Results
 
+| Project            |  Base Model Link                 | Final Model Link |
+|--------------------|---------------------------------------|---------------------|
+| ASR                |   [CNN-BiLSTM](https://img.shields.io/badge/status-in_progress-red.svg)                | ![Train in Progress](https://img.shields.io/badge/status-in_progress-red.svg) |
+| Speech Sentiment   |  [XGBoost](https://img.shields.io/badge/status-in_progress-red.svg)                                  | ![Train in Progress](https://img.shields.io/badge/status-in_progress-red.svg)  |
+| Text Summarizer    | [T5 Small-FineTune](https://huggingface.co/luluw/t5-small-finetuned-xsum) | ![Train in Progress](https://img.shields.io/badge/status-in_progress-red.svg)  |
+
+
 ## Metrics Used
 
+| Project            | Metrics Used                          | 
+|--------------------|---------------------------------------|
+| ASR                | WER, CER                              |
+| Speech Sentiment   |                                       |
+| Text Summarizer    | Rouge1, Rouge2, Rougel, Rougelsum, Gen Len |
+
 ## Evaluation Results
+
+### ASR
+
+![Train in Progress](https://img.shields.io/badge/status-in_progress-red.svg)
+
+### Speech Sentiment
+
+![Train in Progress](https://img.shields.io/badge/status-in_progress-red.svg)
+
+### Text Summarization
+
+| Model | Train Loss | Epoch | Step | Val Loss | Rouge1  | Rouge2  | Rougel  | Rougelsum | Gen Len |
+|-------|------------|-------|------|----------|---------|---------|---------|-----------|---------|
+| **T5 Small**   | 2.7635     | 1.0   | 2041 | 2.5150   | 27.6651 | 7.3702  | 21.7165 | 21.7178   | 18.8121 |
+|       | 2.7114     | 2.0   | 4082 | 2.4780   | 28.3617 | 7.7832  | 22.3142 | 22.3121   | 18.8227 |
+|       | 2.695      | 3.0   | 6123 | 2.4684   | 28.451  | 7.8513  | 22.3844 | 22.3826   | 18.8292 |
+| ![Train in Progress](https://img.shields.io/badge/status-in_progress-red.svg) |
