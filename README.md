@@ -13,8 +13,8 @@ This project aims to develop an advanced system that integrates Automatic Speech
 ## Intermediate Goals
 
 - [x] Baseline Model for ASR
-- [ ] Baseline Model for SER
-- [ ] Baseline Model for Text Summarizer
+- [x] Baseline Model for SER
+- [x] Baseline Model for Text Summarizer
 
 ## Goals
 
@@ -24,41 +24,42 @@ This project aims to develop an advanced system that integrates Automatic Speech
 - [ ] Integrating each component into one cohesive system provides real-time transcription and summaries.
 
 ## Contributors <img src="https://user-images.githubusercontent.com/74038190/213844263-a8897a51-32f4-4b3b-b5c2-e1528b89f6f3.png" width="25px" />
+
 <a href="https://github.com/LuluW8071/ASR-with-Speech-Sentiment-and-Text-Summarizer/graphs/contributors">
   <img src="https://contrib.rocks/image?repo=LuluW8071/ASR-with-Speech-Sentiment-and-Text-Summarizer">
 </a>
-
 
 ## Project Architecture
 
 ### 1. ASR(Automatic Speech Recognition)
 
-| Base Model </br>(1CNN1D - Dense_Layers - 2Bi_LSTM)              | Final Model </br>  |
-|---------------------|-----------------------------------------------|
-| ![Base Model](docs/asr_base_model.jpeg)          |         ![Code in Progress](https://img.shields.io/badge/status-in_progress-red.svg)                         |
+| Base Model </br>(1CNN1D - Dense_Layers - 2Bi_LSTM) | Final Model </br>                                                            |
+| -------------------------------------------------- | ---------------------------------------------------------------------------- |
+| ![Base Model](docs/asr_base_model.jpeg)            | ![Code in Progress](https://img.shields.io/badge/status-in_progress-red.svg) |
 
 ### 2. SER(Speech Emotion Recognition)
 
-| Base Model </br>            | Final Model </br>  |
-|---------------------|-----------------------------------------------|
-| ![Base Model](docs/ser_base_model.jpeg)          |         ![Code in Progress](https://img.shields.io/badge/status-in_progress-red.svg) 
+| Base Model</br>(XGBoost)                | Final Model </br>                                                            |
+| --------------------------------------- | ---------------------------------------------------------------------------- |
+| ![Base Model](docs/ser_base_model.jpeg) | ![Code in Progress](https://img.shields.io/badge/status-in_progress-red.svg) |
 
 ### 3. Text Summarizer
 
-| Base Model </br>            | Final Model </br>  |
-|---------------------|-----------------------------------------------|
-| ![Code in Progress](https://img.shields.io/badge/status-in_progress-red.svg)          |         ![Code in Progress](https://img.shields.io/badge/status-in_progress-red.svg) 
+| Base Model </br>(T5-Small)            | Final Model </br>                                                            |
+| ------------------------------------- | ---------------------------------------------------------------------------- |
+| ![Base Model](docs/T5_base_model.png) | ![Code in Progress](https://img.shields.io/badge/status-in_progress-red.svg) |
 
 ## High Level Next Steps
 
-
 # Usage
+
 ## Installation
+
 <!--To begin this project, use the included `Makefile`
 
 #### Creating Virtual Environment
 
-This package is built using `python-3.8`. 
+This package is built using `python-3.8`.
 We recommend creating a virtual environment and using a matching version to ensure compatibility.
 
 #### pre-commit
@@ -68,10 +69,10 @@ We recommend creating a virtual environment and using a matching version to ensu
 
 #### pip-tools
 
-The method of managing dependencies in this package is using `pip-tools`. To begin, run `make use-pip-tools` to install. 
+The method of managing dependencies in this package is using `pip-tools`. To begin, run `make use-pip-tools` to install.
 
-Then when adding a new package requirement, update the `requirements.in` file with 
-the package name. You can include a specific version if desired but it is not necessary. 
+Then when adding a new package requirement, update the `requirements.in` file with
+the package name. You can include a specific version if desired but it is not necessary.
 
 To install and use the new dependency you can run `make deps-install` or equivalently `make`
 
@@ -79,19 +80,22 @@ If you have other packages installed in the environment that are no longer neede
 
 #### 1. Install Required Dependencies
 
-Before installing dependencies from `requirements.txt`, make sure you have installed 
+Before installing dependencies from `requirements.txt`, make sure you have installed
+
 - [**CUDA ToolKit v11.8/12.1**](https://developer.nvidia.com/cuda-toolkit-archive)
 - [**PyTorch**](https://pytorch.org/)
 - [**SOX**](https://sourceforge.net/projects/sox/)
-    - **For Linux:**
-        ```bash
-        # Update package list and install SOX
-        sudo apt update
-        sudo apt install sox libsox-fmt-all
 
-        # Verify installation
-        sox --version
-        ```
+  - **For Linux:**
+
+    ```bash
+    # Update package list and install SOX
+    sudo apt update
+    sudo apt install sox libsox-fmt-all
+
+    # Verify installation
+    sox --version
+    ```
 
 ```bash
 pip install -r requirements.txt
@@ -111,65 +115,72 @@ PROJECT_NAME = "dummy_key"
 ### ASR
 
 1. Audio Conversion
-    > - `--not-convert` if you don't want audio conversion
-    ```bash
-    py common_voice.py --file_path "file_path/to/validated.tsv" 
-                       --save_json_path "file_path/to/save/json" 
-                       -w 4
-                       --percent 10 
-                       --output_format 'wav' or 'flac'
-    ```
+
+   > `--not-convert` if you don't want audio conversion
+
+   ```bash
+   py common_voice.py --file_path "file_path/to/validated.tsv"
+                      --save_json_path "file_path/to/save/json"
+                      -w 4
+                      --percent 10
+                      --output_format 'wav' or 'flac'
+   ```
 
 2. Train Model
-    > - `--checkpoint_path "path/to/checkpoint_file"` to load pre-trained model and fine tune on it.
-    ```bash
-    py train.py --train_json "path/to/train.json" 
-                --valid_json "path/to/test.json" 
-                -w 4 
-                --batch_size 128 
-                -lr 2e-4
-                --epochs 20 
-    ```
+   > `--checkpoint_path "path/to/checkpoint_file"` to load pre-trained model and fine tune on it.
+   ```bash
+   py train.py --train_json "path/to/train.json"
+               --valid_json "path/to/test.json"
+               -w 4
+               --batch_size 128
+               -lr 2e-4
+               --epochs 20
+   ```
 
 ### Speech Sentiment
 
 1.  Audio Downsample and Augment
 
-    Run the `Speech_Sentiment.ipynb` first to get the *path* and *emotions* table in csv format and downsample all clips.
+    Run the `Speech_Sentiment.ipynb` first to get the _path_ and _emotions_ table in csv format and downsample all clips.
 
     ```bash
-    py downsample.py --file_path "path/to/audio_file.csv" 
-                     --save_csv_path "output/path" 
+    py downsample.py --file_path "path/to/audio_file.csv"
+                     --save_csv_path "output/path"
                      -w 4
                      --output_format 'wav' or 'flac'
     ```
 
     ```bash
-    py augment.py --file_path "path/to/emotion_dataset.csv" 
-                  --save_csv_path "output/path" 
+    py augment.py --file_path "path/to/emotion_dataset.csv"
+                  --save_csv_path "output/path"
                   -w 4
-                  --percent 20 
-                  
+                  --percent 20
+
     ```
 
-2. Train the model
+2.  Train the model
 
-   ```bash
-    py neuralnet/train.py --train_csv "path/to/train.csv" 
-                          --test_csv "path/to/test.csv" 
-                          -w 4 
-                          --batch_size 256 
-                          --epochs 25
-                          -lr 1e-3
+    ```bash
+     py neuralnet/train.py --train_csv "path/to/train.csv"
+                           --test_csv "path/to/test.csv"
+                           -w 4
+                           --batch_size 256
+                           --epochs 25
+                           -lr 1e-3
     ```
+
+### Text Summarization
+
+> Just run the Notebook File in `src/Text_Summarizer` directory.
+> **Note:** You may need 🤗 Hugging Face Token with write permission file to upload your trained model directly on the 🤗 HF hub.
 
 # Data Source
 
-| Project            | Dataset Source                            |
-|--------------------|-------------------------------------------|
-| ASR                | [Mozilla Common Voice](https://commonvoice.mozilla.org/en/datasets)                     |
-| Speech Sentiment   | [RAVDESS](https://www.kaggle.com/datasets/uwrfkaggler/ravdess-emotional-speech-audio), [CremaD](https://www.kaggle.com/datasets/ejlok1/cremad), [TESS](https://www.kaggle.com/datasets/ejlok1/toronto-emotional-speech-set-tess), [SAVEE](https://www.kaggle.com/datasets/ejlok1/surrey-audiovisual-expressed-emotion-savee)                   |
-| Text Summarizer                |                     |
+| Project          | Dataset Source                                                                                                                                                                                                                                                                                                               |
+| ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ASR              | [Mozilla Common Voice](https://commonvoice.mozilla.org/en/datasets)                                                                                                                                                                                                                                                          |
+| Speech Sentiment | [RAVDESS](https://www.kaggle.com/datasets/uwrfkaggler/ravdess-emotional-speech-audio), [CremaD](https://www.kaggle.com/datasets/ejlok1/cremad), [TESS](https://www.kaggle.com/datasets/ejlok1/toronto-emotional-speech-set-tess), [SAVEE](https://www.kaggle.com/datasets/ejlok1/surrey-audiovisual-expressed-emotion-savee) |
+| Text Summarizer  | [XSum](https://huggingface.co/datasets/EdinburghNLP/xsum)                                                                                                                                                                                                                                                                    |
 
 ## Code Structure
 
@@ -177,24 +188,35 @@ PROJECT_NAME = "dummy_key"
 
 # Results
 
-### 1. ASR(Automatic Speech Recognition)
-
-| Base Model </br>(1CNN1D - Dense_Layers - 2Bi_LSTM)              | Final Model </br>  |
-|---------------------|-----------------------------------------------|
-|  ![Train in Progress](https://img.shields.io/badge/status-in_progress-red.svg)         |         ![Code in Progress](https://img.shields.io/badge/status-in_progress-red.svg)                         |
-
-### 2. SER(Speech Emotion Recognition)
-
-| Base Model </br>(2CNN1D - Dense_Layers)           | Final Model </br>  |
-|---------------------|-----------------------------------------------|
-| ![SER Confusion Matrix](docs/ser_baseline_conf_mat.jpg)          |         ![Code in Progress](https://img.shields.io/badge/status-in_progress-red.svg) 
-
-### 3. Text Summarizer
-
-| Base Model </br>            | Final Model </br>  |
-|---------------------|-----------------------------------------------|
-| ![Code in Progress](https://img.shields.io/badge/status-in_progress-red.svg)          |         ![Code in Progress](https://img.shields.io/badge/status-in_progress-red.svg) 
+| Project          | Base Model Link                                                           | Final Model Link                                                              |
+| ---------------- | ------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| ASR              | [CNN-BiLSTM](https://img.shields.io/badge/status-in_progress-red.svg)     | ![Train in Progress](https://img.shields.io/badge/status-in_progress-red.svg) |
+| Speech Sentiment | [XGBoost](https://img.shields.io/badge/status-in_progress-red.svg)        | ![Train in Progress](https://img.shields.io/badge/status-in_progress-red.svg) |
+| Text Summarizer  | [T5 Small-FineTune](https://huggingface.co/luluw/t5-small-finetuned-xsum) | ![Train in Progress](https://img.shields.io/badge/status-in_progress-red.svg) |
 
 ## Metrics Used
 
+| Project          | Metrics Used                               |
+| ---------------- | ------------------------------------------ |
+| ASR              | WER, CER                                   |
+| Speech Sentiment |                                            |
+| Text Summarizer  | Rouge1, Rouge2, Rougel, Rougelsum, Gen Len |
+
 ## Evaluation Results
+
+### ASR
+
+![Train in Progress](https://img.shields.io/badge/status-in_progress-red.svg)
+
+### Speech Sentiment
+
+![Train in Progress](https://img.shields.io/badge/status-in_progress-red.svg)
+
+### Text Summarization
+
+| Model                                                                         | Train Loss | Epoch | Step | Val Loss | Rouge1  | Rouge2 | Rougel  | Rougelsum | Gen Len |
+| ----------------------------------------------------------------------------- | ---------- | ----- | ---- | -------- | ------- | ------ | ------- | --------- | ------- |
+| **T5 Small**                                                                  | 2.7635     | 1.0   | 2041 | 2.5150   | 27.6651 | 7.3702 | 21.7165 | 21.7178   | 18.8121 |
+|                                                                               | 2.7114     | 2.0   | 4082 | 2.4780   | 28.3617 | 7.7832 | 22.3142 | 22.3121   | 18.8227 |
+|                                                                               | 2.695      | 3.0   | 6123 | 2.4684   | 28.451  | 7.8513 | 22.3844 | 22.3826   | 18.8292 |
+| ![Train in Progress](https://img.shields.io/badge/status-in_progress-red.svg) |
