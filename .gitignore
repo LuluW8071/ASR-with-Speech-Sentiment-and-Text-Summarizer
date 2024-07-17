@@ -167,3 +167,13 @@ cython_debug/
 
 # Personal key files
 *.pem
+
+# SER datasets
+augment
+notebook/dataset
+notebook/audio_file.csv
+output
+src/Speech_Sentiment_Analysis/xgb/model.pkl
+src/Speech_Sentiment_Analysis/xgb/features.csv
+src/Speech_Sentiment_Analysis/xgb/scaler.pkl
+src/Speech_Sentiment_Analysis/xgb/label_encoder.pkl
