@@ -24,7 +24,7 @@ This project aims to develop an advanced system that integrates Automatic Speech
 - [ ] Integrating each component into one cohesive system provides real-time transcription and summaries.
 
 ## Contributors <img src="https://user-images.githubusercontent.com/74038190/213844263-a8897a51-32f4-4b3b-b5c2-e1528b89f6f3.png" width="25px" />
-<a href="https://github.com/LuluW8071/ASR-with-Speech-Sentiment-and-Text-Summarizer/graphs/contributors">
+<a href="https://github.com/LuluW8071/ASR-with-Speech-Sentiment-and-Text-Summarizer/graphs/contributors/">
   <img src="https://contrib.rocks/image?repo=LuluW8071/ASR-with-Speech-Sentiment-and-Text-Summarizer">
 </a>
 
@@ -47,7 +47,7 @@ This project aims to develop an advanced system that integrates Automatic Speech
 
 | Base Model </br>(T5-Small)           | Final Model </br>  |
 |---------------------|-----------------------------------------------|
-| ![Base Model](docs/T5_base_model.png)         |         ![Code in Progress](https://img.shields.io/badge/status-in_progress-red.svg) 
+| ![Base Model](docs/Transformer%20T5%20Summarizer.png)        |         ![Code in Progress](https://img.shields.io/badge/status-in_progress-red.svg) 
 
 ## High Level Next Steps
 
