@@ -24,7 +24,7 @@ This project aims to develop an advanced system that integrates Automatic Speech
 - [ ] Integrating each component into one cohesive system provides real-time transcription and summaries.
 
 ## Contributors <img src="https://user-images.githubusercontent.com/74038190/213844263-a8897a51-32f4-4b3b-b5c2-e1528b89f6f3.png" width="25px" />
-<a href="https://github.com/LuluW8071/ASR-with-Speech-Sentiment-and-Text-Summarizer/graphs/contributors/">
+<a href="https://github.com/LuluW8071/ASR-with-Speech-Sentiment-and-Text-Summarizer/graphs/contributors">
   <img src="https://contrib.rocks/image?repo=LuluW8071/ASR-with-Speech-Sentiment-and-Text-Summarizer">
 </a>
 
@@ -35,19 +35,19 @@ This project aims to develop an advanced system that integrates Automatic Speech
 
 | Base Model </br>(1CNN1D - Dense_Layers - 2Bi_LSTM)              | Final Model </br>  |
 |---------------------|-----------------------------------------------|
-| ![Base Model](docs/asr_base_model.jpeg)          |         ![Code in Progress](https://img.shields.io/badge/status-in_progress-red.svg)                         |
+| ![Base Model](docs/asr_base_model.png)          |         ![Code in Progress](https://img.shields.io/badge/status-in_progress-red.svg)                         |
 
 ### 2. SER(Speech Emotion Recognition)
 
 | Base Model</br>(XGBoost)            | Final Model </br>  |
 |---------------------|-----------------------------------------------|
-| ![Code in Progress](https://img.shields.io/badge/status-in_progress-red.svg)          |         ![Code in Progress](https://img.shields.io/badge/status-in_progress-red.svg) 
+| ![Base Model](docs/ser_base_model.png)          |         ![Code in Progress](https://img.shields.io/badge/status-in_progress-red.svg) 
 
 ### 3. Text Summarizer
 
-| Base Model </br>(T5-Small)           | Final Model </br>  |
+| Base Model </br>(T5-Small, T5-Base)           | Final Model </br>  |
 |---------------------|-----------------------------------------------|
-| ![Base Model](docs/Transformer%20T5%20Summarizer.png)        |         ![Code in Progress](https://img.shields.io/badge/status-in_progress-red.svg) 
+| ![Base Model](docs/text_summarizer_base_model.png)         |         ![Code in Progress](https://img.shields.io/badge/status-in_progress-red.svg) 
 
 ## High Level Next Steps
 
@@ -87,7 +87,7 @@ Before installing dependencies from `requirements.txt`, make sure you have insta
         ```bash
         # Update package list and install SOX
         sudo apt update
-        sudo apt install sox libsox-fmt-all
+        sudo apt install sox libsox-fmt-all portaudio19-dev
 
         # Verify installation
         sox --version
@@ -149,7 +149,6 @@ PROJECT_NAME = "dummy_key"
                   --save_csv_path "output/path" 
                   -w 4
                   --percent 20 
-                  
     ```
 
 2. Train the model
@@ -167,6 +166,14 @@ PROJECT_NAME = "dummy_key"
 
 > Just run the Notebook File in `src/Text_Summarizer` directory. 
 > **Note:** You may need 🤗 Hugging Face Token with write permission file to upload your trained model directly on the 🤗 HF hub.
+
+1. To Export hugging face models to ONNX runtime 
+> Example
+
+```bash
+optimum-cli export onnx --model luluw/t5-base-finetuned-billsum base_onnx/
+!python3 -m optimum.exporters.onnx --model=luluw/t5-base-finetuned-billsum base-onnx/
+```
 
 # Data Source
 
@@ -186,7 +193,7 @@ PROJECT_NAME = "dummy_key"
 |--------------------|---------------------------------------|---------------------|
 | ASR                |   [CNN-BiLSTM](https://img.shields.io/badge/status-in_progress-red.svg)                | ![Train in Progress](https://img.shields.io/badge/status-in_progress-red.svg) |
 | Speech Sentiment   |  [XGBoost](https://img.shields.io/badge/status-in_progress-red.svg)                                  | ![Train in Progress](https://img.shields.io/badge/status-in_progress-red.svg)  |
-| Text Summarizer    | [T5 Small-FineTune](https://huggingface.co/luluw/t5-small-finetuned-xsum) | ![Train in Progress](https://img.shields.io/badge/status-in_progress-red.svg)  |
+| Text Summarizer    | [T5 Small-FineTune](https://huggingface.co/luluw/t5-small-finetuned-xsum), [T5 Base-FineTune](https://huggingface.co/luluw/t5-base-finetuned-billsum) | ![Train in Progress](https://img.shields.io/badge/status-in_progress-red.svg)  |
 
 
 ## Metrics Used
@@ -194,7 +201,7 @@ PROJECT_NAME = "dummy_key"
 | Project            | Metrics Used                          | 
 |--------------------|---------------------------------------|
 | ASR                | WER, CER                              |
-| Speech Sentiment   |                                       |
+| Speech Sentiment   | Accuracy, F1-Score, Precision, Recall |
 | Text Summarizer    | Rouge1, Rouge2, Rougel, Rougelsum, Gen Len |
 
 ## Evaluation Results

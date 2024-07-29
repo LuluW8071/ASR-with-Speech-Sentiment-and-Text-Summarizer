@@ -1,5 +1,5 @@
 pyarrow
-pandas[performance, parquet, aws]
+# pandas[performance, parquet, aws]
 pendulum
 lightning
 python-dotenv
@@ -11,4 +11,4 @@ scikit-learn
 pandas
 numpy
 comet-ml
-sox
+# sox
