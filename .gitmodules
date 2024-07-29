@@ -1,0 +1,3 @@
+[submodule "src/Automatic_Speech_Recognition/ctcdecode"]
+	path = src/Automatic_Speech_Recognition/ctcdecode
+	url = https://github.com/Sushmitha-Deva/ctcdecode
