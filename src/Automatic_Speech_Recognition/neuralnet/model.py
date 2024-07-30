@@ -21,7 +21,7 @@ class ActDropNormCNN1D(nn.Module):
 
 class SpeechRecognition(nn.Module):
     hyper_parameters = {
-        "num_classes": 30,  # output_class
+        "num_classes": 29,  # output_class
         "n_feats": 128,     # n_mels
         "dropout": 0.2,
         "hidden_size": 1024,

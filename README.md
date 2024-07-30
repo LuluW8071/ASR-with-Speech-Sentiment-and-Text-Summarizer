@@ -181,7 +181,7 @@ optimum-cli export onnx --model luluw/t5-base-finetuned-billsum base_onnx/
 |--------------------|-------------------------------------------|
 | ASR                | [Mozilla Common Voice](https://commonvoice.mozilla.org/en/datasets)                     |
 | Speech Sentiment   | [RAVDESS](https://www.kaggle.com/datasets/uwrfkaggler/ravdess-emotional-speech-audio), [CremaD](https://www.kaggle.com/datasets/ejlok1/cremad), [TESS](https://www.kaggle.com/datasets/ejlok1/toronto-emotional-speech-set-tess), [SAVEE](https://www.kaggle.com/datasets/ejlok1/surrey-audiovisual-expressed-emotion-savee)                   |
-| Text Summarizer                |   [XSum](https://huggingface.co/datasets/EdinburghNLP/xsum)            |
+| Text Summarizer                |   [XSum](https://huggingface.co/datasets/EdinburghNLP/xsum), [BillSum](https://huggingface.co/datasets/FiscalNote/billsum)           |
 
 ## Code Structure
 
@@ -221,6 +221,18 @@ optimum-cli export onnx --model luluw/t5-base-finetuned-billsum base_onnx/
 | **T5 XSum Small**   | 2.7635     | 1.0   | 2041 | 2.5150   | 27.6651 | 7.3702  | 21.7165 | 21.7178   | 18.8121 |
 |       | 2.7114     | 2.0   | 4082 | 2.4780   | 28.3617 | 7.7832  | 22.3142 | 22.3121   | 18.8227 |
 |       | 2.695      | 3.0   | 6123 | 2.4684   | 28.451  | 7.8513  | 22.3844 | 22.3826   | 18.8292 |
-| **T5 BillSum Base**   | 1.3003        | 0.8442| 2000  | 1.1182          | 56.5942| 37.4635| 45.9359| 50.3437   | 109.3659 |
-|   | 1.2443        | 1.6885| 4000  | 1.1433          | 56.3579| 36.706 | 45.4519| 49.8982   | 118.3600 |
-|   | 1.5978        | 2.5327| 6000  | 1.5204          | 48.9735| 29.0909| 39.1634| 42.7953   | 112.7247 |
+
+
+| Model | Train Loss | Epoch  | Step | Val Loss | Rouge1  | Rouge2  | Rougel  | Rougelsum | Gen Len  |
+|:-------------|:-------------:|:------:|:----:|:---------------:|:-------:|:-------:|:-------:|:---------:|:--------:|
+| **T5 BillSum Base**   | 2.5944        | 0.4219 | 500  | 1.2582          | 50.6899 | 31.6418 | 40.2325 | 44.2687   | 111.7541 |
+|| 1.3588        | 0.8439 | 1000 | 1.1591          | 55.865  | 35.992  | 44.7636 | 49.2805   | 114.3552 |
+|| 1.275         | 1.2658 | 1500 | 1.1214          | 56.3449 | 37.0781 | 45.604  | 49.9711   | 110.7724 |
+|| 1.3266        | 1.6878 | 2000 | 1.1791          | 54.4797 | 33.8689 | 43.1813 | 47.8507   | 114.8278 |
+|| 1.3591        | 2.1097 | 2500 | 1.1725          | 54.243  | 33.5179 | 42.9187 | 47.6231   | 116.4601 |
+|| 1.3484        | 2.5316 | 3000 | 1.1724          | 54.1433 | 33.3914 | 42.8348 | 47.5267   | 116.7736 |
+|| 1.3467        | 2.9536 | 3500 | 1.1724          | 54.1359 | 33.3794 | 42.8167 | 47.5153   | 116.7819 |
+|| 1.3483        | 3.3755 | 4000 | 1.1724          | 54.1446 | 33.3947 | 42.8274 | 47.5313   | 116.8529 |
+|| 1.342         | 3.7975 | 4500 | 1.1724          | 54.1341 | 33.3888 | 42.8239 | 47.5291   | 116.7957 |
+|| 1.3475        | 4.2194 | 5000 | 1.1725          | 54.1411 | 33.3931 | 42.8224 | 47.5218   | 116.8229 |
+|| 1.3542        | 4.6414 | 5500 | 1.1725          | 54.1481 | 33.3953 | 42.8337 | 47.5287   | 116.8581 |

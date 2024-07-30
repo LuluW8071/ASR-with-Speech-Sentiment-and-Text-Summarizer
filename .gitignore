@@ -23,6 +23,7 @@ converted_clips
 cv-corpus-17.0-delta-2024-03-15-en/
 deep_speech_model.py
 deep_speech_train.py
+ctcdecode/
 
 # -------------
 
@@ -53,6 +54,7 @@ share/python-wheels/
 .installed.cfg
 *.egg
 MANIFEST
+pyproject.toml
 
 # PyInstaller
 #  Usually these files are written by a python script from a template

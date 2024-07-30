@@ -32,7 +32,6 @@ class TextTransform:
         x 25
         y 26
         z 27
-        . 28
         """
         self.char_map = {}
         self.index_map = {}
@@ -46,7 +45,7 @@ class TextTransform:
     def text_to_int(self, text):
         """ Use a character map and convert text to an integer sequence """
         int_sequence = []
-        special_chars = {' '}     # Some special chars 
+        special_chars = {' ','–'}     # Some special chars 
         for c in text:
             if c in special_chars:
                 ch = self.char_map['<SPACE>']
@@ -61,27 +60,26 @@ class TextTransform:
         """ Use a character map and convert integer labels to a text sequence """
         string = []
         for i in labels:
-            # if i != self.char_map['<SPACE>']:
-            string.append(self.index_map[i])
+            string.append(self.index_map[i]) 
             # print(string[0])
         return ''.join(string).replace('<SPACE>', ' ')
     
 # Initialize TextProcess for text processing
 text_transform = TextTransform()
 
-def GreedyDecoder(output, labels, label_lengths, blank_label=29, collapse_repeated=True):
+def GreedyDecoder(output, labels, label_lengths, blank_label=28, collapse_repeated=True):
     # print(output)
     arg_maxes = torch.argmax(output, dim=2)
     # print('Argmax indices: ', arg_maxes[0]) 
     decodes = []
     targets = []
     for i, args in enumerate(arg_maxes):
-      decode = []
-      targets.append(text_transform.int_to_text(labels[i][:label_lengths[i]].tolist()))
-      for j, index in enumerate(args):
-        if index != blank_label:
-          if collapse_repeated and j != 0 and index == args[j-1]:
-            continue
-          decode.append(index.item())
-      decodes.append(text_transform.int_to_text(decode))
+        decode = []
+        targets.append(text_transform.int_to_text(labels[i][:label_lengths[i]].tolist()))
+        for j, index in enumerate(args):
+            if index != blank_label:
+                if collapse_repeated and j != 0 and index == args[j-1]:
+                    continue
+                decode.append(index.item())
+        decodes.append(text_transform.int_to_text(decode))
     return decodes, targets
