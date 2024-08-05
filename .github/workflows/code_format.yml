@@ -16,4 +16,4 @@ jobs:
         pip install autopep8
     - name: Run autopep8 formatter
       run: |
-        autopep8 --max-line-length=79 --aggressive --aggressive --diff .
+        autopep8 --max-line-length=79 --aggressive --aggressive --in-place $(find . -name '*.py')
