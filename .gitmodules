@@ -1,6 +1,3 @@
-[submodule "src/Automatic_Speech_Recognition/ctcdecode"]
-	path = src/Automatic_Speech_Recognition/ctcdecode
-	url = https://github.com/Sushmitha-Deva/ctcdecode
 [submodule "src/Automatic_Speech_Recognition/utils"]
 	path = src/Automatic_Speech_Recognition/utils
 	url = https://github.com/Sushmitha-Deva/ctcdecode.git

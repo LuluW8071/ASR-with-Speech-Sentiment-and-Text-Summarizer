@@ -1,0 +1,88 @@
+name: Bug Report
+description: Report a bug
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Before You Start
+        > Please **ensure you are using the latest version** of the project.
+        Fill out the sections below to help us understand and fix the issue.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: Describe the issue you're encountering.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to Reproduce
+      description: |
+        Provide a detailed list of steps to reproduce the issue. 
+        The more specific you are, the better we can identify and resolve the problem. 
+        Please provide text-based steps rather than screenshots.
+
+      placeholder: |
+        Example:
+        1. Open the 'Speech Sentiment Analysis' tool.
+        2. Input an audio file with sentiment data.
+        3. Click on the 'Analyze' button.
+        4. Observe the output and error message (if any).
+
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      placeholder: Describe what you expected to happen.
+
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots or Videos (Optional)
+      description: Attach any screenshots or videos that might help in diagnosing the issue.
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment Details
+      description: |
+        Provide information about your operating system, software/tool version, and other relevant details.
+      placeholder: |
+        Operating System: [e.g., Windows 10, macOS 11.2.3, Ubuntu 20.04]
+        Software/Tool Version: [e.g., ASR Tool v1.2.3]
+        Additional Information: [e.g., specific hardware details or configurations]
+
+  - type: dropdown
+    id: assign
+    attributes:
+      label: "Would you like to work on this issue?"
+      options:
+        - "Yes"
+        - "No"
+
+  - type: checkboxes
+    id: acknowledgements
+    attributes:
+      label: 'Acknowledgements'
+      description: 'Please confirm the following:'
+      options:
+        - label: 'The issue title is clear and descriptive.'
+          required: true
+        - label: 'I have checked existing issues to ensure this bug hasn’t been reported yet.'
+          required: true
+        - label: 'I am using the latest version of the project.'
+          required: true
+        - label: 'I have provided sufficient information for reproducing and diagnosing the issue.'
+          required: true
+
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for reporting this issue! We will review it and get back to you as soon as possible.
