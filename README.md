@@ -1,4 +1,4 @@
-# ASR-with-Speech-Sentiment-Analysis-Text-Summarizer
+# ASR-with-Speech-Sentiment-Analysis-and-Text-Summarizer
 
 <div align="center">
 
