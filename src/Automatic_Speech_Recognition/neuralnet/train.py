@@ -6,7 +6,7 @@ import torch
 import torch.nn.functional as F
 import torch.optim as optim
 from torch import nn
-from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
+from pytorch_lightning.callbacks import ModelCheckpoint, LearningRateMonitor, EarlyStopping
 from pytorch_lightning.loggers import CometLogger
 
 # Load API
@@ -25,6 +25,7 @@ class ASRTrainer(pl.LightningModule):
         self.args = args
 
         # Metrics
+        self.losses = []
         self.loss_fn = nn.CTCLoss(blank=28, zero_infinity=True)
 
     def forward(self, x, hidden):
@@ -58,8 +59,9 @@ class ASRTrainer(pl.LightningModule):
     
     def validation_step(self, batch, batch_idx):
         loss, y_pred, labels, label_lengths = self._common_step(batch, batch_idx)
-        val_cer, val_wer = [], []
+        self.losses.append(loss)
 
+        val_cer, val_wer = [], []
         decoded_preds, decoded_targets = GreedyDecoder(y_pred.transpose(0, 1), labels, label_lengths)
         
         # Log predictions
@@ -78,8 +80,15 @@ class ASRTrainer(pl.LightningModule):
         'val_cer': avg_cer,
         'val_wer': avg_wer,
     }, on_step=False, on_epoch=True, prog_bar=True, logger=True, batch_size=batch_idx)
-        self.log('val_loss', loss, on_step=True, on_epoch=True, prog_bar=True, logger=True, batch_size=batch_idx)
-        return loss
+        return {'val_loss': loss}
+
+
+    def on_validation_epoch_end(self):
+        avg_loss = torch.stack(self.losses).mean()
+
+        self.log('val_loss', avg_loss.item(), on_step=False, on_epoch=True, prog_bar=True, logger=True)
+        self.losses.clear()     # Clear losses for next epochs
+
 
     def predict_step(self, batch, batch_idx):
         pass
@@ -122,7 +131,8 @@ def main(args):
                          precision=args.precision,
                          val_check_interval=args.steps,
                          gradient_clip_val=1.0,
-                         callbacks=[EarlyStopping(monitor="val_loss"), 
+                         callbacks=[LearningRateMonitor(logging_interval='epoch'),
+                                    EarlyStopping(monitor="val_loss"), 
                                     checkpoint_callback
                          ],
                          logger=comet_logger
