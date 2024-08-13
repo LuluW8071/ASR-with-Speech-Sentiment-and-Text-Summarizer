@@ -10,13 +10,13 @@ from pathlib import Path
 
 # Function to clean text by removing specified characters
 def clean_text(text):
-    characters_to_remove =':!,-"‘’;—?'
+    characters_to_remove =':!,"‘’;—?'
     translator = str.maketrans('', '', characters_to_remove)
     return text.translate(translator)
 
 def process_file(row, clips_directory, directory, output_format):
     file_name = row['path']  # Original file location
-    clips_name = file_name.rpartition('.')[0] + '.' + output_format  # Converted file extension: FLAC
+    clips_name = file_name.rpartition('.')[0] + '.' + output_format 
     text = clean_text(row['sentence'])  # Clean the sentence
     audio_path = os.path.join(directory, 'clips', file_name)
     output_audio_path = os.path.join(clips_directory, clips_name)
