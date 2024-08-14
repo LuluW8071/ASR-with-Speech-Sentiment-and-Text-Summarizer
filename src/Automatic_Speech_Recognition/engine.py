@@ -153,7 +153,7 @@ class DemoAction:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="demoing the speech recognition engine in terminal.")
     parser.add_argument('--model_file', type=str, default=None, required=True,
-                        help='optimized file to load. use freeze_model.py')
+                        help='optimized file to load. use freeze.py')
     parser.add_argument('--ken_lm_file', type=str, default=None, required=False,
                         help='If you have an ngram lm use to decode')
 
