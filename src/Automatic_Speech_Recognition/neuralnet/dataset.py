@@ -110,28 +110,22 @@ class SpeechDataModule(pl.LightningDataModule):
                                                valid=True)
         
     def data_processing(self, data):
-        spectrograms = []
-        labels = []
-        input_lengths = []
-        label_lengths = []
+        spectrograms, labels, input_lengths, label_lengths = [], [], [], []
         for (spectrogram, label, input_length, label_length) in data:
             if spectrogram is None:
                 continue
-
             spectrograms.append(spectrogram.squeeze(0).transpose(0, 1))
-            # print(len(spectrograms))
-            # print(f'Label Check: {label}')
             labels.append(torch.Tensor(label))
-            input_lengths.append(spectrogram.shape[-1] // 2)
-            label_lengths.append(len(label))
-        # Print the shapes of spectrograms before padding
-        # for spec in spectrograms:
-        #     print("Spec before padding:", spec.shape)
+            input_lengths.append(input_length)
+            label_lengths.append(label_length)
 
-        # NOTE: https://www.geeksforgeeks.org/how-do-you-handle-sequence-padding-and-packing-in-pytorch-for-rnns/
-        spectrograms = nn.utils.rnn.pad_sequence(spectrograms, batch_first=True).unsqueeze(1).transpose(2, 3)
-        # print('Padded Spectrograms: ', spectrograms.shape)
+        # Pad the spectrograms to have the same width (time dimension)
+        spectrograms = nn.utils.rnn.pad_sequence(spectrograms, batch_first=True).unsqueeze(1)
         labels = nn.utils.rnn.pad_sequence(labels, batch_first=True)
+
+        # Convert input_lengths and label_lengths to tensors
+        input_lengths = torch.tensor(input_lengths, dtype=torch.long)
+        label_lengths = torch.tensor(label_lengths, dtype=torch.long)
 
         return spectrograms, labels, input_lengths, label_lengths
 
