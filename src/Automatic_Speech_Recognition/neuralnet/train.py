@@ -162,7 +162,7 @@ if __name__ == "__main__":
     # Train Device Hyperparameters
     parser.add_argument('-g', '--gpus', default=1, type=int, help='number of gpus per node')
     parser.add_argument('-w', '--num_workers', default=2, type=int, help='n data loading workers')
-    parser.add_argument('-db', '--dist_backend', default='ddp', type=str,
+    parser.add_argument('-db', '--dist_backend', default='ddp_find_unused_parameters_true', type=str,
                         help='which distributed backend to use for aggregating multi-gpu train')
 
     # Train and Valid File
