@@ -42,12 +42,12 @@ class ASRTrainer(pl.LightningModule):
         }
         return [optimizer], [scheduler]
     
+    
     def _common_step(self, batch, batch_idx):
         spectrograms, labels, input_lengths, label_lengths = batch
         bs = spectrograms.shape[0]
-        hidden = self.model._init_hidden(bs)
-        hn, c0 = hidden[0].to(self.device), hidden[1].to(self.device)
-        output, _ = self(spectrograms, (hn, c0))
+        hidden = self.model._init_hidden(bs).to(self.device)
+        output, _ = self(spectrograms, hidden)
         output = F.log_softmax(output, dim=2)
         
         loss = self.loss_fn(output, labels, input_lengths, label_lengths)
