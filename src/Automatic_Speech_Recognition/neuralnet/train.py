@@ -14,9 +14,22 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from dataset import SpeechDataModule
-from model import SpeechRecognition
+from model import ConformerEncoder, LSTMDecoder
 from utils import GreedyDecoder
 from scorer import wer, cer
+
+
+class ConformerASR(nn.Module):
+    def __init__(self, encoder_params, decoder_params):
+        super(ConformerASR, self).__init__()
+        self.encoder = ConformerEncoder(**encoder_params)
+        self.decoder = LSTMDecoder(**decoder_params)
+
+    def forward(self, x):
+        encoder_output = self.encoder(x)
+        decoder_output = self.decoder(encoder_output)
+        return decoder_output
+
 
 class ASRTrainer(pl.LightningModule):
     def __init__(self, model, args):
@@ -44,11 +57,9 @@ class ASRTrainer(pl.LightningModule):
     
     
     def _common_step(self, batch, batch_idx):
-        spectrograms, labels, input_lengths, label_lengths = batch
-        bs = spectrograms.shape[0]
-        hidden = self.model._init_hidden(bs).to(self.device)
-        output, _ = self(spectrograms, hidden)
-        output = F.log_softmax(output, dim=2)
+        spectrograms, labels, input_lengths, label_lengths, references, mask = batch
+        output = self(spectrograms)     # Directly calls forward method of conformer
+        output = F.log_softmax(output, dim=-1).transpose(0, 1)
         
         loss = self.loss_fn(output, labels, input_lengths, label_lengths)
         return loss, output, labels, label_lengths
@@ -75,7 +86,9 @@ class ASRTrainer(pl.LightningModule):
             val_cer.append(cer(decoded_targets[i], decoded_preds[i]))
             val_wer.append(wer(decoded_targets[i], decoded_preds[i]))
 
-        # Log final predictions
+        # Log predictions
+        log_targets = decoded_targets[-1]
+        log_preds = {"Val_Preds": decoded_preds[-1]}
         self.logger.experiment.log_text(text=log_targets, metadata=log_preds)
 
         avg_cer = sum(val_cer) / len(val_cer)
@@ -112,11 +125,28 @@ def main(args):
                                    num_workers=args.num_workers)
     data_module.setup()
 
-    # Log hyperparams of model and setup trainer
-    h_params = SpeechRecognition.hyper_parameters
-    model = SpeechRecognition(**h_params)
-    speech_trainer = ASRTrainer(model=model, 
-                                args=args) 
+    # Define model hyperparameters
+    encoder_params = {
+        'd_input': 80,  # input features
+        'd_model': 144,
+        'num_layers': 16,
+        'conv_kernel_size': 31,
+        'feed_forward_residual_factor': 0.5,
+        'feed_forward_expansion_factor': 4,
+        'num_heads': 4,
+        'dropout': 0.1,
+    }
+    
+    decoder_params = {
+        'd_encoder': 144,  # Should match d_model of encoder
+        'd_decoder': 320,
+        'num_layers': 1,
+        'num_classes': 29,  # Adjust based on your output classes
+    }
+
+    # Create model
+    model = ConformerASR(encoder_params, decoder_params)
+    speech_trainer = ASRTrainer(model=model, args=args)
 
     # NOTE: Comet Logger
     comet_logger = CometLogger(api_key=os.getenv('API_KEY'),
