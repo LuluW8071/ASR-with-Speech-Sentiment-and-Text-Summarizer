@@ -1,3 +1,5 @@
+""" Reference: https://arxiv.org/abs/2005.08100 """
+
 import math
 import torch
 from torch import nn
@@ -5,9 +7,10 @@ import torch.nn.functional as F
 
 
 class PositionalEncoder(nn.Module):
-  '''
+  """
     Generate positional encodings used in the relative multi-head attention module.
-    These encodings are the same as the original transformer model: https://arxiv.org/abs/1706.03762
+    Same encodings as the original transformer model [Attention Is All You Need]: 
+    https://arxiv.org/abs/1706.03762
 
     Parameters:
       max_len (int): Maximum sequence length (time dimension)
@@ -17,7 +20,8 @@ class PositionalEncoder(nn.Module):
 
     Outputs
       Tensor (len, d_model): Positional encodings
-  '''
+  """
+
   def __init__(self, d_model, max_len=10000):
     super(PositionalEncoder, self).__init__()
     self.d_model = d_model
@@ -30,10 +34,10 @@ class PositionalEncoder(nn.Module):
 
   def forward(self, len):
       return self.encodings[:len, :]
-  
+
 
 class RelativeMultiHeadAttention(nn.Module):
-  '''
+  """
     Relative Multi-Head Self-Attention Module.
     Method proposed in Transformer-XL paper: https://arxiv.org/abs/1901.02860
 
@@ -50,7 +54,8 @@ class RelativeMultiHeadAttention(nn.Module):
     Outputs:
       Tensor (batch_size, time, d_model): Output tensor from the attention module.
 
-  '''
+  """
+
   def __init__(self, d_model=144, num_heads=4, dropout=0.1, positional_encoder=PositionalEncoder(144)):
     super(RelativeMultiHeadAttention, self).__init__()
 
@@ -82,9 +87,12 @@ class RelativeMultiHeadAttention(nn.Module):
     pos_emb = pos_emb.repeat(batch_size, 1, 1)
 
     q = self.W_q(x).view(batch_size, seq_length, self.num_heads, self.d_head)
-    k = self.W_k(x).view(batch_size, seq_length, self.num_heads, self.d_head).permute(0, 2, 3, 1)
-    v = self.W_v(x).view(batch_size, seq_length, self.num_heads, self.d_head).permute(0, 2, 3, 1)
-    pos_emb = self.W_pos(pos_emb).view(batch_size, -1, self.num_heads, self.d_head).permute(0, 2, 3, 1)
+    k = self.W_k(x).view(batch_size, seq_length, self.num_heads,
+                         self.d_head).permute(0, 2, 3, 1)
+    v = self.W_v(x).view(batch_size, seq_length, self.num_heads,
+                         self.d_head).permute(0, 2, 3, 1)
+    pos_emb = self.W_pos(pos_emb).view(
+        batch_size, -1, self.num_heads, self.d_head).permute(0, 2, 3, 1)
 
     AC = torch.matmul((q + self.u).transpose(1, 2), k)
     BD = torch.matmul((q + self.v).transpose(1, 2), pos_emb)
@@ -103,22 +111,22 @@ class RelativeMultiHeadAttention(nn.Module):
     output = self.W_out(output)
     return self.dropout(output)
 
-
   def rel_shift(self, emb):
-    '''
+    """
       Pad and shift form relative positional encodings.
       Taken from Transformer-XL implementation: https://github.com/kimiyoung/transformer-xl/blob/master/pytorch/mem_transformer.py
-    '''
+    """
     batch_size, num_heads, seq_length1, seq_length2 = emb.size()
     zeros = emb.new_zeros(batch_size, num_heads, seq_length1, 1)
     padded_emb = torch.cat([zeros, emb], dim=-1)
-    padded_emb = padded_emb.view(batch_size, num_heads, seq_length2 + 1, seq_length1)
+    padded_emb = padded_emb.view(
+        batch_size, num_heads, seq_length2 + 1, seq_length1)
     shifted_emb = padded_emb[:, :, 1:].view_as(emb)
     return shifted_emb
-  
+
 
 class ConvBlock(nn.Module):
-  '''
+  """
     Conformer convolutional block.
 
     Parameters:
@@ -133,19 +141,22 @@ class ConvBlock(nn.Module):
     Outputs:
       Tensor (batch_size, time, d_model): Output tensor from the convolution module
 
-  '''
+  """
+
   def __init__(self, d_model=144, kernel_size=31, dropout=0.1):
     super(ConvBlock, self).__init__()
     self.layer_norm = nn.LayerNorm(d_model, eps=6.1e-5)
-    kernel_size=31
+    kernel_size = 31
     self.module = nn.Sequential(
-      nn.Conv1d(in_channels=d_model, out_channels=d_model * 2, kernel_size=1),
-      nn.GLU(dim=1),
-      nn.Conv1d(in_channels=d_model, out_channels=d_model, kernel_size=kernel_size, padding='same', groups=d_model),
-      nn.BatchNorm1d(d_model, eps=6.1e-5),
-      nn.SiLU(),
-      nn.Conv1d(in_channels=d_model, out_channels=d_model, kernel_size=1),
-      nn.Dropout(dropout)
+        nn.Conv1d(in_channels=d_model,
+                  out_channels=d_model * 2, kernel_size=1),
+        nn.GLU(dim=1),
+        nn.Conv1d(in_channels=d_model, out_channels=d_model,
+                  kernel_size=kernel_size, padding='same', groups=d_model),
+        nn.BatchNorm1d(d_model, eps=6.1e-5),
+        nn.SiLU(),
+        nn.Conv1d(in_channels=d_model, out_channels=d_model, kernel_size=1),
+        nn.Dropout(dropout)
     )
 
   def forward(self, x):
@@ -153,10 +164,10 @@ class ConvBlock(nn.Module):
     x = x.transpose(1, 2)
     x = self.module(x)
     return x.transpose(1, 2)
-  
+
 
 class FeedForwardBlock(nn.Module):
-  '''
+  """
     Conformer feed-forward block.
 
     Parameters:
@@ -171,24 +182,25 @@ class FeedForwardBlock(nn.Module):
     Outputs:
       Tensor (batch_size, time, d_model): Output tensor from the feed-forward module
 
-  '''
+  """
+
   def __init__(self, d_model=144, expansion=4, dropout=0.1):
     super(FeedForwardBlock, self).__init__()
     self.module = nn.Sequential(
-      nn.LayerNorm(d_model, eps=6.1e-5),
-      nn.Linear(d_model, d_model * expansion),
-      nn.SiLU(),
-      nn.Dropout(dropout),
-      nn.Linear(d_model * expansion, d_model),
-      nn.Dropout(dropout)
+        nn.LayerNorm(d_model, eps=6.1e-5),
+        nn.Linear(d_model, d_model * expansion),
+        nn.SiLU(),
+        nn.Dropout(dropout),
+        nn.Linear(d_model * expansion, d_model),
+        nn.Dropout(dropout)
     )
 
   def forward(self, x):
     return self.module(x)
-  
+
 
 class Conv2dSubsampling(nn.Module):
-  '''
+  """
     2d Convolutional subsampling.
     Subsamples time and freq domains of input spectrograms by a factor of 4, d_model times.
 
@@ -201,26 +213,30 @@ class Conv2dSubsampling(nn.Module):
     Outputs:
       Tensor (batch_size, time, d_model * (d_input // 4)): Output tensor from the conlutional subsampling module
 
-  '''
+  """
+
   def __init__(self, d_model=144):
     super(Conv2dSubsampling, self).__init__()
     self.module = nn.Sequential(
-      nn.Conv2d(in_channels=1, out_channels=d_model, kernel_size=3, stride=2),
-      nn.ReLU(),
-      nn.Conv2d(in_channels=d_model, out_channels=d_model, kernel_size=3, stride=2),
-      nn.ReLU(),
+        nn.Conv2d(in_channels=1, out_channels=d_model,
+                  kernel_size=3, stride=2),
+        nn.ReLU(),
+        nn.Conv2d(in_channels=d_model, out_channels=d_model,
+                  kernel_size=3, stride=2),
+        nn.ReLU(),
     )
 
   def forward(self, x):
     output = self.module(x.unsqueeze(1))
     batch_size, d_model, subsampled_time, subsampled_freq = output.size()
     output = output.permute(0, 2, 1, 3)
-    output = output.contiguous().view(batch_size, subsampled_time, d_model * subsampled_freq)
+    output = output.contiguous().view(
+        batch_size, subsampled_time, d_model * subsampled_freq)
     return output
-  
+
 
 class ConformerBlock(nn.Module):
-  '''
+  """
     Conformer Encoder Block.
 
     Parameters:
@@ -239,7 +255,8 @@ class ConformerBlock(nn.Module):
     Outputs:
       Tensor (batch_size, time, d_model): Output tensor from the conformer block.
 
-  '''
+  """
+
   def __init__(
           self,
           d_model=144,
@@ -252,10 +269,13 @@ class ConformerBlock(nn.Module):
   ):
     super(ConformerBlock, self).__init__()
     self.residual_factor = feed_forward_residual_factor
-    self.ff1 = FeedForwardBlock(d_model, feed_forward_expansion_factor, dropout)
-    self.attention = RelativeMultiHeadAttention(d_model, num_heads, dropout, positional_encoder)
+    self.ff1 = FeedForwardBlock(
+        d_model, feed_forward_expansion_factor, dropout)
+    self.attention = RelativeMultiHeadAttention(
+        d_model, num_heads, dropout, positional_encoder)
     self.conv_block = ConvBlock(d_model, conv_kernel_size, dropout)
-    self.ff2 = FeedForwardBlock(d_model, feed_forward_expansion_factor, dropout)
+    self.ff2 = FeedForwardBlock(
+        d_model, feed_forward_expansion_factor, dropout)
     self.layer_norm = nn.LayerNorm(d_model, eps=6.1e-5)
 
   def forward(self, x, mask=None):
@@ -264,10 +284,10 @@ class ConformerBlock(nn.Module):
     x = x + self.conv_block(x)
     x = x + (self.residual_factor * self.ff2(x))
     return self.layer_norm(x)
-  
+
 
 class ConformerEncoder(nn.Module):
-  '''
+  """
     Conformer Encoder Module.
 
     Parameters:
@@ -288,7 +308,8 @@ class ConformerEncoder(nn.Module):
       Tensor (batch_size, time, d_model): Output tensor from the conformer encoder
 
 
-  '''
+  """
+
   def __init__(
           self,
           d_input=80,
@@ -302,19 +323,20 @@ class ConformerEncoder(nn.Module):
   ):
     super(ConformerEncoder, self).__init__()
     self.conv_subsample = Conv2dSubsampling(d_model=d_model)
-    self.linear_proj = nn.Linear(d_model * (((d_input - 1) // 2 - 1) // 2), d_model)
+    self.linear_proj = nn.Linear(
+        d_model * (((d_input - 1) // 2 - 1) // 2), d_model)
     self.dropout = nn.Dropout(p=dropout)
 
     positional_encoder = PositionalEncoder(d_model)
     self.layers = nn.ModuleList([ConformerBlock(
-            d_model=d_model,
-            conv_kernel_size=conv_kernel_size,
-            feed_forward_residual_factor=feed_forward_residual_factor,
-            feed_forward_expansion_factor=feed_forward_expansion_factor,
-            num_heads=num_heads,
-            positional_encoder=positional_encoder,
-            dropout=dropout,
-        ) for _ in range(num_layers)])
+        d_model=d_model,
+        conv_kernel_size=conv_kernel_size,
+        feed_forward_residual_factor=feed_forward_residual_factor,
+        feed_forward_expansion_factor=feed_forward_expansion_factor,
+        num_heads=num_heads,
+        positional_encoder=positional_encoder,
+        dropout=dropout,
+    ) for _ in range(num_layers)])
 
   def forward(self, x, mask=None):
     x = self.conv_subsample(x)
@@ -330,10 +352,10 @@ class ConformerEncoder(nn.Module):
       x = layer(x, mask=mask)
 
     return x
-  
+
 
 class LSTMDecoder(nn.Module):
-  '''
+  """
     LSTM Decoder
 
     Parameters:
@@ -348,10 +370,12 @@ class LSTMDecoder(nn.Module):
     Outputs:
       Tensor (batch_size, time, num_classes): Class prediction logits
 
-  '''
+  """
+
   def __init__(self, d_encoder=144, d_decoder=320, num_layers=1, num_classes=29):
     super(LSTMDecoder, self).__init__()
-    self.lstm = nn.LSTM(input_size=d_encoder, hidden_size=d_decoder, num_layers=num_layers, batch_first=True)
+    self.lstm = nn.LSTM(input_size=d_encoder, hidden_size=d_decoder,
+                        num_layers=num_layers, batch_first=True)
     self.linear = nn.Linear(d_decoder, num_classes)
 
   def forward(self, x):
