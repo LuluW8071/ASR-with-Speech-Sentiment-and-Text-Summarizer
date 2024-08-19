@@ -79,7 +79,9 @@ If you have other packages installed in the environment that are no longer neede
 
 #### 1. Install Required Dependencies
 
-Before installing dependencies from `requirements.txt`, make sure you have installed 
+> [!IMPORTANT] 
+> Before installing dependencies from `requirements.txt`, make sure you have installed these dependecies.
+
 - [**CUDA ToolKit v11.8/12.1**](https://developer.nvidia.com/cuda-toolkit-archive)
 - [**PyTorch**](https://pytorch.org/)
 - [**SOX**](https://sourceforge.net/projects/sox/)
@@ -127,8 +129,10 @@ PROJECT_NAME = "dummy_key"
                 --valid_json "path/to/test.json" 
                 -w 4 
                 --batch_size 128 
-                -lr 2e-4
+                -lr 3e-5
                 --epochs 20 
+                --steps 5000    # valid every n steps
+                --gpu 2         # no of Gpu for multi-gpu trian
     ```
 
 ### Speech Sentiment
@@ -167,13 +171,13 @@ PROJECT_NAME = "dummy_key"
 > Just run the Notebook File in `src/Text_Summarizer` directory. 
 > **Note:** You may need 🤗 Hugging Face Token with write permission file to upload your trained model directly on the 🤗 HF hub.
 
-1. To Export hugging face models to ONNX runtime 
+<!-- 1. To Export hugging face models to ONNX runtime 
 > Example
 
 ```bash
 optimum-cli export onnx --model luluw/t5-base-finetuned-billsum base_onnx/
 !python3 -m optimum.exporters.onnx --model=luluw/t5-base-finetuned-billsum base-onnx/
-```
+``` -->
 
 # Data Source
 

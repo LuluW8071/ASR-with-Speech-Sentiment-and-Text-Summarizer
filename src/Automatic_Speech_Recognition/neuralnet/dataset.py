@@ -11,25 +11,21 @@ from utils import TextTransform       # Comment this for engine inference
 
 
 class LogMelSpec(nn.Module):
-    def __init__(self, sample_rate=16000, n_mels=128, win_length=400, hop_length=160, n_fft=1024):
+    def __init__(self, sample_rate=16000, n_mels=80, hop_length=160):
         super(LogMelSpec, self).__init__()
         self.transform = transforms.MelSpectrogram(sample_rate=sample_rate, 
                                                    n_mels=n_mels,
-                                                   win_length=win_length,
-                                                   hop_length=hop_length, 
-                                                   n_fft = n_fft)
+                                                   hop_length=hop_length)
 
     def forward(self, x):
         x = self.transform(x)  # mel spectrogram
         x = np.log(x + 1e-14)  # logarithmic, add small value to avoid inf
         return x
 
-def get_featurizer(sample_rate=16000, n_mels=128, win_length=400, hop_length=160, n_fft=1024):
+def get_featurizer(sample_rate=16000, n_mels=80, hop_length=160):
     return LogMelSpec(sample_rate=sample_rate, 
                       n_mels=n_mels,
-                      win_length=win_length,
-                      hop_length=hop_length, 
-                      n_fft = n_fft)
+                      hop_length=hop_length)
 
 # Custom Dataset Class
 class CustomAudioDataset(Dataset):
@@ -46,10 +42,11 @@ class CustomAudioDataset(Dataset):
                 LogMelSpec()
             )
         else:
-            self.audio_transforms = torch.nn.Sequential(
+            time_masks = [torchaudio.transforms.TimeMasking(time_mask_param=15, p=0.05) for _ in range(10)]
+            self.audio_transforms = nn.Sequential(
                 LogMelSpec(),
-                transforms.FrequencyMasking(freq_mask_param=30),
-                transforms.TimeMasking(time_mask_param=70)
+                transforms.FrequencyMasking(freq_mask_param=15),
+                *time_masks,
             )
 
 
@@ -67,7 +64,8 @@ class CustomAudioDataset(Dataset):
             # print('Sentences:', utterance)
             label = self.text_process.text_to_int(utterance)
             spectrogram = self.audio_transforms(waveform)   # (channel, feature, time)
-            spec_len = spectrogram.shape[-1] // 2
+            # spec_len = spectrogram.shape[-1] // 2
+            spec_len = spectrogram.shape[-1] 
             label_len = len(label)
 
             # print(f'SpecShape: {spectrogram.shape} \t shape[-1]: {spectrogram.shape[-1]}')
@@ -102,6 +100,7 @@ class SpeechDataModule(pl.LightningDataModule):
         self.train_json = train_json
         self.test_json = test_json
         self.num_workers = num_workers
+        self.text_process = TextTransform()  # Initialize TextProcess for text processing
 
     def setup(self, stage=None):
         self.train_dataset = CustomAudioDataset(self.train_json,
@@ -110,30 +109,28 @@ class SpeechDataModule(pl.LightningDataModule):
                                                valid=True)
         
     def data_processing(self, data):
-        spectrograms = []
-        labels = []
-        input_lengths = []
-        label_lengths = []
+        spectrograms, labels, references, input_lengths, label_lengths = [], [], [], [], []
         for (spectrogram, label, input_length, label_length) in data:
             if spectrogram is None:
                 continue
-
             spectrograms.append(spectrogram.squeeze(0).transpose(0, 1))
-            # print(len(spectrograms))
-            # print(f'Label Check: {label}')
             labels.append(torch.Tensor(label))
-            input_lengths.append(spectrogram.shape[-1] // 2)
-            label_lengths.append(len(label))
-        # Print the shapes of spectrograms before padding
-        # for spec in spectrograms:
-        #     print("Spec before padding:", spec.shape)
-
-        # NOTE: https://www.geeksforgeeks.org/how-do-you-handle-sequence-padding-and-packing-in-pytorch-for-rnns/
-        spectrograms = nn.utils.rnn.pad_sequence(spectrograms, batch_first=True).unsqueeze(1).transpose(2, 3)
-        # print('Padded Spectrograms: ', spectrograms.shape)
+            input_lengths.append(((spectrogram.shape[-1] - 1) // 2 - 1) // 2)
+            label_lengths.append(label_length)
+            references.append(self.text_process.int_to_text(label))  # Convert label back to text
+        # Pad the spectrograms to have the same width (time dimension)
+        spectrograms = nn.utils.rnn.pad_sequence(spectrograms, batch_first=True)
         labels = nn.utils.rnn.pad_sequence(labels, batch_first=True)
 
-        return spectrograms, labels, input_lengths, label_lengths
+        # Convert input_lengths and label_lengths to tensors
+        input_lengths = torch.tensor(input_lengths, dtype=torch.long)
+        label_lengths = torch.tensor(label_lengths, dtype=torch.long)
+
+        mask = torch.ones(spectrograms.shape[0], spectrograms.shape[1], spectrograms.shape[1])
+        for i, l in enumerate(input_lengths):
+            mask[i, :, :l] = 0
+
+        return spectrograms, labels, input_lengths, label_lengths, references, mask.bool()
 
 
     def train_dataloader(self):
