@@ -7,33 +7,39 @@ import sox
 from tqdm import tqdm
 from multiprocessing.pool import ThreadPool
 from pathlib import Path
+from sox.core import SoxiError
 
-# Function to clean text by removing specified characters
 def clean_text(text):
-    characters_to_remove =':!,"‘’;—?'
+    characters_to_remove = ':!,"‘’;—?'
     translator = str.maketrans('', '', characters_to_remove)
     return text.translate(translator)
 
 def process_file(row, clips_directory, directory, output_format):
-    file_name = row['path']  # Original file location
+    file_name = row['path']
     clips_name = file_name.rpartition('.')[0] + '.' + output_format 
-    text = clean_text(row['sentence'])  # Clean the sentence
+    text = clean_text(row['sentence'])
     audio_path = os.path.join(directory, 'clips', file_name)
     output_audio_path = os.path.join(clips_directory, clips_name)
 
-    # Convert MP3 to FLAC using Sox
-    tfm = sox.Transformer()
-    tfm.rate(samplerate=16000)
-    tfm.build(input_filepath=audio_path, output_filepath=output_audio_path)
+    # Skip conversion if the output file already exists
+    if os.path.exists(output_audio_path):
+        return {'key': clips_directory + '/' + clips_name, 'text': text}
+
+    # Check if the input file is valid before processing
+    try:
+        tfm = sox.Transformer()
+        tfm.rate(samplerate=16000)
+        tfm.build(input_filepath=audio_path, output_filepath=output_audio_path)
+    except SoxiError:
+        print(f"Skipping file due to SoxiError: {audio_path}")
+        return None
 
     return {'key': clips_directory + '/' + clips_name, 'text': text}
 
 def main(args):
-    data = []  # Empty list to store clips and sentences
+    data = []
     directory = args.file_path.rpartition('/')[0]
     percent = args.percent
-
-    # Create a 'clips' directory inside defined save_json_path
     clips_directory = os.path.abspath(os.path.join(args.save_json_path, 'clips'))
 
     if not os.path.exists(clips_directory):
@@ -49,7 +55,8 @@ def main(args):
     if args.convert:
         print(f"{length} files found. Converting MP3 to {args.output_format.upper()} using {args.num_workers} workers.")
         with ThreadPool(args.num_workers) as pool:
-            data = list(tqdm(pool.imap(lambda x: process_file(*x), data_to_process), total=length))
+            results = list(tqdm(pool.imap(lambda x: process_file(*x), data_to_process), total=length))
+            data = [result for result in results if result is not None]
     else:
         for row in data_to_process:
             file_name = row[0]['path']
@@ -57,7 +64,6 @@ def main(args):
             text = clean_text(row[0]['sentence'])
             data.append({'key': clips_directory + '/' + clips_name, 'text': text})
 
-    # Splitting data into train and test set and saving into JSON file
     random.shuffle(data)
     print("Creating train and test JSON sets")
 
