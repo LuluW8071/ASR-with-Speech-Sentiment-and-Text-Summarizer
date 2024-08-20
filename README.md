@@ -79,9 +79,7 @@ If you have other packages installed in the environment that are no longer neede
 
 #### 1. Install Required Dependencies
 
-> [!IMPORTANT] 
-> Before installing dependencies from `requirements.txt`, make sure you have installed these dependecies.
-
+Before installing dependencies from `requirements.txt`, make sure you have installed 
 - [**CUDA ToolKit v11.8/12.1**](https://developer.nvidia.com/cuda-toolkit-archive)
 - [**PyTorch**](https://pytorch.org/)
 - [**SOX**](https://sourceforge.net/projects/sox/)
@@ -129,10 +127,8 @@ PROJECT_NAME = "dummy_key"
                 --valid_json "path/to/test.json" 
                 -w 4 
                 --batch_size 128 
-                -lr 3e-5
+                -lr 2e-4
                 --epochs 20 
-                --steps 5000    # valid every n steps
-                --gpu 2         # no of Gpu for multi-gpu trian
     ```
 
 ### Speech Sentiment
@@ -171,13 +167,13 @@ PROJECT_NAME = "dummy_key"
 > Just run the Notebook File in `src/Text_Summarizer` directory. 
 > **Note:** You may need 🤗 Hugging Face Token with write permission file to upload your trained model directly on the 🤗 HF hub.
 
-<!-- 1. To Export hugging face models to ONNX runtime 
+1. To Export hugging face models to ONNX runtime 
 > Example
 
 ```bash
 optimum-cli export onnx --model luluw/t5-base-finetuned-billsum base_onnx/
 !python3 -m optimum.exporters.onnx --model=luluw/t5-base-finetuned-billsum base-onnx/
-``` -->
+```
 
 # Data Source
 
@@ -208,35 +204,18 @@ optimum-cli export onnx --model luluw/t5-base-finetuned-billsum base_onnx/
 | Speech Sentiment   | Accuracy, F1-Score, Precision, Recall |
 | Text Summarizer    | Rouge1, Rouge2, Rougel, Rougelsum, Gen Len |
 
-## Evaluation Results
+### Loss Curve Evaluation
 
-### ASR
+| Project            | Base Model                 | Final Model Link |
+|--------------------|-----------------------------|-------------------|
+| ASR                | [CNN-BiLSTM](https://img.shields.io/badge/status-in_progress-red.svg) | ![Train in Progress](https://img.shields.io/badge/status-in_progress-red.svg) |
+| Speech Sentiment   | [XGBoost](https://img.shields.io/badge/status-in_progress-red.svg)  | ![Train in Progress](https://img.shields.io/badge/status-in_progress-red.svg) |
+| Text Summarizer    | ![T5 Base Model Loss](docs/Summarizer_base_loss_curve.png) | ![Train in Progress](https://img.shields.io/badge/status-in_progress-red.svg) |
 
-![Train in Progress](https://img.shields.io/badge/status-in_progress-red.svg)
+### Evaluation Metrics Results
 
-### Speech Sentiment
-
-![Train in Progress](https://img.shields.io/badge/status-in_progress-red.svg)
-
-### Text Summarization
-
-| Model | Train Loss | Epoch | Step | Val Loss | Rouge1  | Rouge2  | Rougel  | Rougelsum | Gen Len |
-|-------|------------|-------|------|----------|---------|---------|---------|-----------|---------|
-| **T5 XSum Small**   | 2.7635     | 1.0   | 2041 | 2.5150   | 27.6651 | 7.3702  | 21.7165 | 21.7178   | 18.8121 |
-|       | 2.7114     | 2.0   | 4082 | 2.4780   | 28.3617 | 7.7832  | 22.3142 | 22.3121   | 18.8227 |
-|       | 2.695      | 3.0   | 6123 | 2.4684   | 28.451  | 7.8513  | 22.3844 | 22.3826   | 18.8292 |
-
-
-| Model | Train Loss | Epoch  | Step | Val Loss | Rouge1  | Rouge2  | Rougel  | Rougelsum | Gen Len  |
-|:-------------|:-------------:|:------:|:----:|:---------------:|:-------:|:-------:|:-------:|:---------:|:--------:|
-| **T5 BillSum Base**   | 2.5944        | 0.4219 | 500  | 1.2582          | 50.6899 | 31.6418 | 40.2325 | 44.2687   | 111.7541 |
-|| 1.3588        | 0.8439 | 1000 | 1.1591          | 55.865  | 35.992  | 44.7636 | 49.2805   | 114.3552 |
-|| 1.275         | 1.2658 | 1500 | 1.1214          | 56.3449 | 37.0781 | 45.604  | 49.9711   | 110.7724 |
-|| 1.3266        | 1.6878 | 2000 | 1.1791          | 54.4797 | 33.8689 | 43.1813 | 47.8507   | 114.8278 |
-|| 1.3591        | 2.1097 | 2500 | 1.1725          | 54.243  | 33.5179 | 42.9187 | 47.6231   | 116.4601 |
-|| 1.3484        | 2.5316 | 3000 | 1.1724          | 54.1433 | 33.3914 | 42.8348 | 47.5267   | 116.7736 |
-|| 1.3467        | 2.9536 | 3500 | 1.1724          | 54.1359 | 33.3794 | 42.8167 | 47.5153   | 116.7819 |
-|| 1.3483        | 3.3755 | 4000 | 1.1724          | 54.1446 | 33.3947 | 42.8274 | 47.5313   | 116.8529 |
-|| 1.342         | 3.7975 | 4500 | 1.1724          | 54.1341 | 33.3888 | 42.8239 | 47.5291   | 116.7957 |
-|| 1.3475        | 4.2194 | 5000 | 1.1725          | 54.1411 | 33.3931 | 42.8224 | 47.5218   | 116.8229 |
-|| 1.3542        | 4.6414 | 5500 | 1.1725          | 54.1481 | 33.3953 | 42.8337 | 47.5287   | 116.8581 |
+| Project            | Base Model                 | Final Model Link |
+|--------------------|-----------------------------|-------------------|
+| ASR                | [CNN-BiLSTM](https://img.shields.io/badge/status-in_progress-red.svg) | ![Train in Progress](https://img.shields.io/badge/status-in_progress-red.svg) |
+| Speech Sentiment   | [XGBoost](https://img.shields.io/badge/status-in_progress-red.svg)  | ![Train in Progress](https://img.shields.io/badge/status-in_progress-red.svg) |
+| Text Summarizer    | ![T5 Base Model Metrics](docs/Summarizer_T5Small_Metrics.png)</br> ![T5 Base Model Metrics](docs/Summarizer_T5Base_Metrics.png) | ![Train in Progress](https://img.shields.io/badge/status-in_progress-red.svg) |
