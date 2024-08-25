@@ -43,7 +43,7 @@ def DecodeGreedy(output, blank_label=28, collapse_repeated=True):
     decode = []
     for i, index in enumerate(arg_maxes):
     	if index != blank_label:
-    		if collapse_repeated and i != 0 and index == arg_maxes[i -1]:
+    		if collapse_repeated and i != 0 and index == arg_maxes[i-1]:
     			continue
     		decode.append(index.item())
     return textprocess.int_to_text_sequence(decode)
@@ -69,12 +69,14 @@ class CTCBeamDecoder:
             alpha (float): Scaling factor for language model score.
             beta (float): Scaling factor for length normalization.
         """
-        print("loading beam search with lm...")
         self.decoder = ctcdecode.CTCBeamDecoder(
-            labels, alpha=0.522729216841, beta=0.96506699808,
-            beam_width=beam_size, blank_id=labels.index('_'),
-            model_path=kenlm_path)
-        print("finished loading beam search")
+            labels,                     # Labels for the vocabulary
+            alpha=0.522729216841,       # Weight associated with the language model score
+            beta=0.96506699808,         # Weight associated with the number of words within our beam
+            beam_width=beam_size,       # Beam size for beam search decoding; higher = better accuracy but slower
+            blank_id=labels.index('_'), # Index of the blank label in the vocabulary
+            model_path=kenlm_path)      # Path to the KenLM language model file
+        print("Finished loading beam search")
 
     def __call__(self, output):
         """
@@ -86,8 +88,8 @@ class CTCBeamDecoder:
         Returns:
             str: Decoded text sequence.
         """
-        # Perform beam search decoding
         beam_result, beam_scores, timesteps, out_seq_len = self.decoder.decode(output)
+
         # Convert result to string
         return self.convert_to_string(beam_result[0][0], labels, out_seq_len[0][0])
 
