@@ -24,6 +24,12 @@ This project aims to develop an advanced system that integrates __Automatic Spee
 - [x] **Final Model for ASR:** Conformer
 - [ ] **Final Model for SER**
 - [x] **Final Model for Text Summarizer:** BART Large
+- [x] **Baseline Model for ASR:** CNN-BiLSTM
+- [x] **Baseline Model for SER:** XGBoost
+- [x] **Baseline Model for Text Summarizer:** T5-Small, T5-Base
+- [x] **Final Model for ASR:** Conformer
+- [ ] **Final Model for SER**
+- [x] **Final Model for Text Summarizer:** BART Large
 
 ## Goals
 
@@ -96,6 +102,8 @@ pip install -r requirements.txt
 
 > [!NOTE]
 > Replace `dummy_key` with your actual Comet-ML API key and project name in the `.env` file to enable real-time loss curve plotting, system metrics tracking, and confusion matrix visualization.
+> [!NOTE]
+> Replace `dummy_key` with your actual Comet-ML API key and project name in the `.env` file to enable real-time loss curve plotting, system metrics tracking, and confusion matrix visualization.
 
 ```python
 API_KEY = "dummy_key"
@@ -104,6 +112,9 @@ PROJECT_NAME = "dummy_key"
 
 ## Usage Instructions
 
+### ASR (Automatic Speech Recognition)
+
+#### 1. Audio Conversion
 ### ASR (Automatic Speech Recognition)
 
 #### 1. Audio Conversion
@@ -143,7 +154,10 @@ py extract_sentence.py --file_path file_path/to/validated.tsv
 ### Speech Sentiment
 
 #### 1. Audio Downsample and Augment
+#### 1. Audio Downsample and Augment
 
+> [!NOTE]
+> Run the `Speech_Sentiment.ipynb` first to get the *path* and *emotions* table in csv format and downsample all clips.
 > [!NOTE]
 > Run the `Speech_Sentiment.ipynb` first to get the *path* and *emotions* table in csv format and downsample all clips.
 
@@ -162,6 +176,7 @@ py augment.py --file_path "path/to/emotion_dataset.csv"
 ```
 
 #### 2. Train the Model
+#### 2. Train the Model
 
 ```bash
 py neuralnet/train.py --train_csv "path/to/train.csv" 
@@ -175,9 +190,12 @@ py neuralnet/train.py --train_csv "path/to/train.csv"
 ### Text Summarization
 
 > [!NOTE]
+> [!NOTE]
 > Just run the Notebook File in `src/Text_Summarizer` directory. 
 >  You may need 🤗 Hugging Face Token with write permission file to upload your trained model directly on the 🤗 HF hub.
+>  You may need 🤗 Hugging Face Token with write permission file to upload your trained model directly on the 🤗 HF hub.
 
+<!-- 1. To Export hugging face models to ONNX runtime 
 <!-- 1. To Export hugging face models to ONNX runtime 
 > Example
 
@@ -185,9 +203,15 @@ py neuralnet/train.py --train_csv "path/to/train.csv"
 optimum-cli export onnx --model luluw/t5-base-finetuned-billsum base_onnx/
 !python3 -m optimum.exporters.onnx --model=luluw/t5-base-finetuned-billsum base-onnx/
 ``` -->
+``` -->
 
 # Data Source
 
+| Project            | Dataset Source                            | |
+|--------------------|-------------------------------------------|-|
+| __ASR__                | [Mozilla Common Voice](https://commonvoice.mozilla.org/en/datasets)                     | <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcS1rPYa2Q9zPtwLUeZJP3pWeNwmJjRpcLlpdQ&s" width="30px" /> |
+| __SER__   | [RAVDESS](https://www.kaggle.com/datasets/uwrfkaggler/ravdess-emotional-speech-audio), [CremaD](https://www.kaggle.com/datasets/ejlok1/cremad), [TESS](https://www.kaggle.com/datasets/ejlok1/toronto-emotional-speech-set-tess), [SAVEE](https://www.kaggle.com/datasets/ejlok1/surrey-audiovisual-expressed-emotion-savee)                   | <img src="https://go-skill-icons.vercel.app/api/icons?i=kaggle" width="30px"/>  |
+| __Text Summarizer__                |   [XSum](https://huggingface.co/datasets/EdinburghNLP/xsum), [BillSum](https://huggingface.co/datasets/FiscalNote/billsum)           | <img src="https://go-skill-icons.vercel.app/api/icons?i=hf" width="30px"/>  |
 | Project            | Dataset Source                            | |
 |--------------------|-------------------------------------------|-|
 | __ASR__                | [Mozilla Common Voice](https://commonvoice.mozilla.org/en/datasets)                     | <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcS1rPYa2Q9zPtwLUeZJP3pWeNwmJjRpcLlpdQ&s" width="30px" /> |
@@ -205,12 +229,18 @@ The code styling adheres to `autopep8` formatting.
 | __ASR__                |   [CNN-BiLSTM](https://img.shields.io/badge/status-in_progress-red.svg)                | [Conformer](https://img.shields.io/badge/status-in_progress-red.svg) |
 | __SER__   |  [XGBoost](https://img.shields.io/badge/status-in_progress-red.svg)                                  | ![Train in Progress](https://img.shields.io/badge/status-in_progress-red.svg)  |
 | __Text Summarizer__    | [T5 Small-FineTune](https://huggingface.co/luluw/t5-small-finetuned-xsum), [T5 Base-FineTune](https://huggingface.co/luluw/t5-base-finetuned-billsum) | [BART](https://img.shields.io/badge/status-in_progress-red.svg)  |
+| __ASR__                |   [CNN-BiLSTM](https://img.shields.io/badge/status-in_progress-red.svg)                | [Conformer](https://img.shields.io/badge/status-in_progress-red.svg) |
+| __SER__   |  [XGBoost](https://img.shields.io/badge/status-in_progress-red.svg)                                  | ![Train in Progress](https://img.shields.io/badge/status-in_progress-red.svg)  |
+| __Text Summarizer__    | [T5 Small-FineTune](https://huggingface.co/luluw/t5-small-finetuned-xsum), [T5 Base-FineTune](https://huggingface.co/luluw/t5-base-finetuned-billsum) | [BART](https://img.shields.io/badge/status-in_progress-red.svg)  |
 
 
 ## Metrics Used
 
 | Project            | Metrics Used                          | 
 |--------------------|---------------------------------------|
+| __ASR__                  | WER, CER                              |
+| __SER__   | Accuracy, F1-Score, Precision, Recall |
+| __Text Summarizer__    | Rouge1, Rouge2, Rougel, Rougelsum, Gen Len |
 | __ASR__                  | WER, CER                              |
 | __SER__   | Accuracy, F1-Score, Precision, Recall |
 | __Text Summarizer__    | Rouge1, Rouge2, Rougel, Rougelsum, Gen Len |
