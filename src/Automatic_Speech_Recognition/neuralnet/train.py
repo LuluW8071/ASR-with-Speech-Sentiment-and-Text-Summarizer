@@ -159,7 +159,12 @@ def main(args):
     }
 
     # Create model
-    model = ConformerASR(encoder_params, decoder_params)
+    if args.gpus > 1:
+        model = ConformerASR(encoder_params, decoder_params)
+    else:
+        model = torch.compile(ConformerASR(encoder_params, decoder_params),
+                              mode='default')
+        print("Compiled Architecture for faster training")
 
     # Load checkpoint and adjust epochs if checkpoint path is provided
     if args.checkpoint_path:
