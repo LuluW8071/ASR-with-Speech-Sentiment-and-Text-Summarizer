@@ -1,35 +1,55 @@
 from transformers import pipeline
 
-# Initialize the pipeline for text generation
-pipe = pipeline("text2text-generation", model="luluw/bart-large-summarizer", device="cuda")
+# Initialize the single pipeline for text generation
+bart_cnn_finetuned = pipeline("text2text-generation", model="luluw/bart-large-cnn-finetuned")
 
-# Input text
-text_1 = """ 
-Interstellar is a 2014 science fiction film directed by Christopher Nolan that explores themes of space exploration, time dilation, love, and the survival of humanity. The story is set in a future where Earth is facing environmental collapse, and humanity's only hope for survival lies beyond the stars. The protagonist, Cooper, played by Matthew McConaughey, is a former NASA pilot who is called upon to lead a mission through a wormhole near Saturn to explore potential habitable planets in another galaxy. He joins a team of scientists, including Amelia Brand (Anne Hathaway), to search for a new home for humanity. The film intricately weaves theoretical physics, particularly Einstein's theory of relativity, into its narrative, portraying how time behaves differently near massive gravitational forces. This concept is exemplified in one of the film's most iconic scenes, where the crew visits a planet orbiting a supermassive black hole, resulting in significant time dilation—what feels like hours on the planet translates to decades back on Earth.
-The film masterfully balances high-concept science with deeply emotional human experiences, particularly Cooper's relationship with his daughter, Murph. As Cooper ventures deeper into space, the separation from his family weighs heavily on him, and the film explores how time, both as a scientific and emotional element, affects relationships. One of the central themes is the idea that love transcends time and space, as symbolized by Cooper's enduring connection with his daughter, even across vast cosmic distances and time spans. Hans Zimmer's haunting score, built around organ melodies and rhythmic ticking, intensifies the emotional and existential weight of the film.
-As the story unfolds, the crew encounters numerous challenges, including limited resources, personal betrayals, and the harsh realities of interstellar travel. The movie's climax takes a bold turn when Cooper, in an attempt to save his team, ventures into the black hole's event horizon, entering a tesseract—a multidimensional space where time is represented as a physical dimension. Here, he is able to communicate with his daughter across time using gravity, sending her vital information needed to save humanity. This sequence, which blurs the line between science fiction and metaphysical wonder, demonstrates Nolan's ambition to tackle the most complex concepts of space, time, and human existence.
-Interstellar is visually stunning, with groundbreaking visual effects that realistically depict black holes and space travel. The depiction of the black hole, Gargantua, was created with the help of renowned physicist Kip Thorne, whose work ensured that the science behind the film remained as accurate as possible. The film's portrayal of space is both awe-inspiring and terrifying, illustrating the vastness of the universe and the fragility of human life. It raises profound questions about humanity's place in the cosmos, the limits of scientific understanding, and the power of love as a guiding force in the most uncertain of times.
-While Interstellar received praise for its ambition and technical achievements, it also sparked debate over its scientific liberties, particularly the depiction of the tesseract and the communication across time. However, its blend of hard science and emotional storytelling has earned it a lasting place in cinematic history. It pushes the boundaries of what a space epic can achieve, not just in terms of spectacle, but also in its philosophical exploration of what it means to be human in an indifferent universe. Ultimately, Interstellar is a meditation on survival, sacrifice, and the lengths we will go to ensure that love and hope endure, even when faced with the most insurmountable challenges.
-"""
+def get_samples_from_file(file_path):
+    """
+    Reads text samples from a text file where each sample is separated by a double newline.
+    
+    Parameters:
+    - file_path (str): The path to the text file containing the samples.
 
-text_2 = """ 
-Wormholes, also known as Einstein-Rosen bridges, are theoretical structures in space-time that could potentially allow for rapid travel between two distant points in the universe. They are a solution to the equations of Albert Einstein's theory of general relativity, which describe how mass and energy warp the fabric of space-time. A wormhole can be visualized as a tunnel or bridge with two ends, each located at different points in space and time. In theory, traveling through a wormhole could enable an object or a person to move between the two ends much faster than by traversing normal space. This concept is highly appealing for space travel because it offers a potential shortcut that could dramatically reduce travel time between distant regions of the cosmos, circumventing the universal speed limit imposed by the speed of light.
-The idea of wormholes has fascinated physicists and science fiction writers alike. In the simplest terms, a wormhole connects two distant locations via a special kind of space-time curvature, creating a path that might, in theory, allow for faster-than-light travel. Mathematically, wormholes can exist in various forms. The most famous type is the Schwarzschild wormhole, which is part of the solution to Einstein's field equations for a non-rotating black hole. However, this type of wormhole is not traversable, meaning that anything trying to pass through it would be destroyed by tidal forces before reaching the other side. Traversable wormholes, as proposed by physicist Kip Thorne and others, would require exotic matter to keep the tunnel open. Exotic matter is a hypothetical form of matter that has negative energy density and violates known laws of physics.
-One of the major challenges with wormholes is that no observational evidence for their existence currently exists. They remain purely theoretical constructs at this point. Additionally, if wormholes do exist, it is uncertain whether they could be made stable enough for practical use. Most solutions to Einstein's equations suggest that wormholes would collapse too quickly for anything to pass through them, unless held open by some form of exotic matter. Moreover, even if stable, a wormhole could have hazardous effects, such as extreme tidal forces near its entrance and exit, and it could be affected by quantum effects in ways that are not yet fully understood.
-Physicists have also speculated about the potential for time travel through wormholes. Since general relativity allows for the possibility of warping space-time, some have theorized that if one end of a wormhole moves in a particular way, it could create a time difference between the two ends, effectively allowing time travel. This idea, while captivating, presents numerous paradoxes and contradictions, such as the famous "grandfather paradox," where a traveler could theoretically go back in time and alter the past in a way that would prevent their own existence. Despite the challenges and the lack of empirical evidence, the study of wormholes continues to push the boundaries of theoretical physics, encouraging scientists to think deeply about the nature of space, time, and the universe itself.
-"""
+    Returns:
+    - list: A list of text samples.
+    """
+    try:
+        with open(file_path, "r", encoding="utf-8") as file:
+            content = file.read()
+        
+        # Split the text into samples by double newlines
+        samples = content.split("\n\n")
+        return samples
+    except FileNotFoundError:
+        print(f"Error: The file {file_path} was not found.")
+        return []
 
-text_3 = """ 
-Nepal, nestled in the heart of the Himalayas, is a small, landlocked country with a rich cultural heritage and unparalleled natural beauty. Known worldwide as the home of Mount Everest, the tallest mountain on Earth, Nepal draws adventurers and trekkers from around the globe who come to explore its rugged, mountainous terrain. The country is bordered by China to the north and India to the south, making it a melting pot of cultural influences. With a population of around 30 million people, Nepal is incredibly diverse, both ethnically and linguistically. The majority of Nepalese people follow Hinduism, though Buddhism is also practiced widely, particularly in the northern regions. Nepal is the birthplace of Lord Buddha, and the town of Lumbini, where he was born, is a major pilgrimage site for Buddhists.
-Despite its relatively small size, Nepal has an incredibly varied topography. The country stretches from the lowland Terai plains, which border India, to the towering Himalayan mountain range in the north. In between are lush valleys, rolling hills, and dense forests, making Nepal one of the most biodiverse countries in the world. The Terai is home to subtropical forests and fertile farmland, while the central hill region contains Kathmandu Valley, the political and cultural heart of the country. The Himalayan region, with its snow-capped peaks and alpine meadows, remains one of the least populated areas due to its harsh environment but is renowned for its breathtaking beauty.
-Nepal’s economy is largely based on agriculture, which employs a significant portion of the population. Rice, wheat, maize, and barley are the primary crops, though much of the farming is done on a subsistence level. In recent years, tourism has become an increasingly important part of the economy, especially adventure tourism. The country's trekking routes, particularly those in the Everest and Annapurna regions, are world-famous. Additionally, the Nepalese government has worked to promote the country as a destination for ecotourism, with several national parks and conservation areas that protect endangered species like the Bengal tiger, the one-horned rhinoceros, and the red panda. The Sagarmatha National Park, which includes Mount Everest, is a UNESCO World Heritage Site and a key draw for nature enthusiasts.
-Nepal has also faced numerous challenges. It is one of the poorest countries in the world, with a significant portion of the population living below the poverty line. Political instability has been a recurring issue, especially since the country transitioned from a monarchy to a federal democratic republic in 2008. The country was also severely affected by the devastating earthquake in 2015, which caused widespread damage to infrastructure and killed nearly 9,000 people. Rebuilding efforts have been slow, particularly in rural areas. Despite these difficulties, the resilience and hospitality of the Nepalese people are often cited as defining characteristics of the country.
-Nepal’s cultural heritage is equally rich. The Kathmandu Valley is home to seven UNESCO World Heritage Sites, including ancient temples, palaces, and stupas that reflect the artistic achievements of the Newar people, who were historically the dominant group in the region. Festivals play a crucial role in Nepalese life, with events like Dashain and Tihar being celebrated with great enthusiasm across the country. Music and dance are integral parts of these festivals, with traditional instruments and folk dances reflecting Nepal’s diverse cultural heritage. The country’s art forms, from intricate wood carvings to vibrant Thangka paintings, also highlight its deep spiritual roots and artistic legacy.
-In conclusion, Nepal is a country of extraordinary contrasts and remarkable beauty. From the towering peaks of the Himalayas to the spiritual centers of the Kathmandu Valley, it offers a rich tapestry of cultural, historical, and natural wonders. Despite the challenges it faces, including economic hardships and political instability, Nepal continues to inspire with its unique blend of tradition, resilience, and natural grandeur."""
+def summarize_texts(pipeline, texts):
+    """
+    Summarizes texts using the provided pipeline.
 
-texts = [text_1, text_2, text_3]
+    Parameters:
+    - pipeline (Pipeline): The transformers pipeline for text generation.
+    - texts (list): A list of texts to summarize.
 
-# Generate summary
-for idx, text in enumerate(texts):
-    summary = pipe(text, max_new_tokens=128)
-    print("Summary:\n", summary[0]['generated_text'], end="\n\n")
+    Returns:
+    - list: A list of summaries.
+    """
+    summaries = []
+    
+    for idx, text in enumerate(texts):
+        try:
+            summary = pipeline(text, max_new_tokens=160)[0]['generated_text']
+            summaries.append(summary)
+            print(f"Text {idx+1} Summary:\n", summary, end="\n\n")
+        except Exception as e:
+            print(f"Error processing text {idx+1}: {e}")
+    
+    return summaries
+
+if __name__ == "__main__":
+    file_path = "sample/text_samples.txt"
+
+    # Fetch text samples from the file and summarize them
+    texts = get_samples_from_file(file_path)
+    summaries = summarize_texts(bart_cnn_finetuned, texts)
