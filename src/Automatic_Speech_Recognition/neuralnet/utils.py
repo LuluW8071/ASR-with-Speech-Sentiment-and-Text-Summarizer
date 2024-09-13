@@ -51,7 +51,6 @@ class TextTransform:
                 ch = self.char_map['<SPACE>']
             else:
                 ch = self.char_map[c]
-                # print('Mapped Chars:', ch)
             int_sequence.append(ch)
         return int_sequence
 
@@ -61,14 +60,12 @@ class TextTransform:
         string = []
         for i in labels:
             string.append(self.index_map[i]) 
-            # print(string[0])
         return ''.join(string).replace('<SPACE>', ' ')
     
 # Initialize TextProcess for text processing
 text_transform = TextTransform()
 
 def GreedyDecoder(output, labels, label_lengths, blank_label=28, collapse_repeated=True):
-    # print(output)
     arg_maxes = torch.argmax(output, dim=2)
     # print('Argmax indices: ', arg_maxes[0]) 
     decodes = []

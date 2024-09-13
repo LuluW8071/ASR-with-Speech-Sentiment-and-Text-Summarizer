@@ -25,9 +25,9 @@ def main(args):
 
     model.load_state_dict(new_state_dict)
 
-    print("tracing model...")
+    print("Tracing model...")
     traced_model = trace(model)
-    print("saving to", args.save_path)
+    print("Saving to", args.save_path)
     traced_model.save(args.save_path)
     print("Done!")
 

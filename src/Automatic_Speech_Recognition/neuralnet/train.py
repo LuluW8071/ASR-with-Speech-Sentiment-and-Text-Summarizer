@@ -37,7 +37,7 @@ class ASRTrainer(pl.LightningModule):
     def configure_optimizers(self):
         optimizer = optim.AdamW(self.model.parameters(), lr=self.args.learning_rate, weight_decay=0.001)
         scheduler = {
-            'scheduler': optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.50, patience=6),
+            'scheduler': optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.30, patience=3),
             'monitor': 'val_loss',
         }
         return [optimizer], [scheduler]
@@ -65,37 +65,41 @@ class ASRTrainer(pl.LightningModule):
         self.losses.append(loss)
 
         val_cer, val_wer = [], []
+        
+        # Greedy decoding
         decoded_preds, decoded_targets = GreedyDecoder(y_pred.transpose(0, 1), labels, label_lengths)
         
-        # Decode CER & WER 
+        # Decode CER & WER
         for i in range(len(decoded_preds)):
             log_targets = decoded_targets[i]
             log_preds = {"Preds": decoded_preds[i]}
             
+            # Calculate CER and WER for both Greedy and Beam Search
             val_cer.append(cer(decoded_targets[i], decoded_preds[i]))
             val_wer.append(wer(decoded_targets[i], decoded_preds[i]))
 
         # Log final predictions
         self.logger.experiment.log_text(text=log_targets, metadata=log_preds)
 
-        avg_cer = sum(val_cer) / len(val_cer)
-        avg_wer = sum(val_wer) / len(val_wer)
+         # Extend the lists with batch results
+        self.val_cer_list.extend(val_cer)
+        self.val_wer_list.extend(val_wer)
 
-        self.log_dict({
-        'val_cer': avg_cer,
-        'val_wer': avg_wer,
-        }, 
-        on_step=False, on_epoch=True, prog_bar=True, logger=True, 
-        batch_size=batch_idx, sync_dist=self.sync_dist)
         return {'val_loss': loss}
 
 
     def on_validation_epoch_end(self):
         avg_loss = torch.stack(self.losses).mean()
+        avg_cer = sum(self.val_cer_list) / len(self.val_cer_list)
+        avg_wer = sum(self.val_wer_list) / len(self.val_wer_list)
 
-        self.log('val_loss', avg_loss.item(), on_step=False, on_epoch=True, prog_bar=True, logger=True, 
-                             sync_dist=self.sync_dist)
-        self.losses.clear()     # Clear losses for next epochs
+        self.log('val_loss', avg_loss.item(), on_step=False, on_epoch=True, prog_bar=True, logger=True, sync_dist=self.sync_dist)
+        self.log('val_cer', avg_cer, on_step=False, on_epoch=True, prog_bar=True, logger=True, sync_dist=self.sync_dist)
+        self.log('val_wer', avg_wer, on_step=False, on_epoch=True, prog_bar=True, logger=True, sync_dist=self.sync_dist)
+
+        self.losses.clear()
+        self.val_cer_list.clear()
+        self.val_wer_list.clear()
 
 
     def predict_step(self, batch, batch_idx):
@@ -170,9 +174,9 @@ if __name__ == "__main__":
     parser.add_argument('--valid_json', default=None, required=True, type=str, help='json file to load testing data')
 
     # General Train Hyperparameters
-    parser.add_argument('--epochs', default=20, type=int, help='number of total epochs to run')
+    parser.add_argument('--epochs', default=10, type=int, help='number of total epochs to run')
     parser.add_argument('--batch_size', default=64, type=int, help='size of batch')
-    parser.add_argument('-lr','--learning_rate', default=3e-5, type=float, help='learning rate')
+    parser.add_argument('-lr','--learning_rate', default=2e-5, type=float, help='learning rate')
     parser.add_argument('--precision', default='16-mixed', type=str, help='precision')
     parser.add_argument('--steps', default=1000, type=int, help='val every n steps')
     

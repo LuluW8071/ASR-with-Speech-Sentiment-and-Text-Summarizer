@@ -37,16 +37,16 @@ class SpeechRecognition(nn.Module):
             ActDropNormCNN1D(n_feats, dropout),
         )
         self.dense = nn.Sequential(
-            nn.Linear(n_feats, 256),
-            nn.LayerNorm(256),
+            nn.Linear(n_feats, 128),
+            nn.LayerNorm(128),
             nn.GELU(),
             nn.Dropout(dropout),
-            nn.Linear(256, 256),
-            nn.LayerNorm(256),
+            nn.Linear(128, 128),
+            nn.LayerNorm(128),
             nn.GELU(),
             nn.Dropout(dropout),
         )
-        self.lstm = nn.LSTM(input_size=256, hidden_size=hidden_size,
+        self.lstm = nn.LSTM(input_size=128, hidden_size=hidden_size,
                             num_layers=num_layers, dropout=0.2,
                             bidirectional=True)
         self.layer_norm2 = nn.LayerNorm(hidden_size * 2)         # Adjust for bidirectionality
