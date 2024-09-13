@@ -60,11 +60,8 @@ class CustomAudioDataset(Dataset):
         try:
             waveform, _ = torchaudio.load(file_path)        # Point to location of audio data
             utterance = item['text'].lower()                # Point to sentence of audio data
-            # print(waveform, sample_rate)
-            # print('Sentences:', utterance)
             label = self.text_process.text_to_int(utterance)
             spectrogram = self.audio_transforms(waveform)   # (channel, feature, time)
-            # spec_len = spectrogram.shape[-1] // 2
             spec_len = spectrogram.shape[-1] 
             label_len = len(label)
 
@@ -80,7 +77,6 @@ class CustomAudioDataset(Dataset):
             if label_len == 0:
                 raise Exception('label len is zero... skipping %s' %file_path)
             
-            # print(f'{idx}. {utterance}')
             return spectrogram, label, spec_len, label_len
 
         except Exception as e:
@@ -139,7 +135,7 @@ class SpeechDataModule(pl.LightningDataModule):
                           shuffle=True, 
                           collate_fn=lambda x: self.data_processing(x), 
                           num_workers=self.num_workers, 
-                          pin_memory=True)      # Optimizes data-transfer speed for CUDA
+                          pin_memory=True)      # Optimizes data-transfer speed
 
     def val_dataloader(self):
         return DataLoader(self.test_dataset, 

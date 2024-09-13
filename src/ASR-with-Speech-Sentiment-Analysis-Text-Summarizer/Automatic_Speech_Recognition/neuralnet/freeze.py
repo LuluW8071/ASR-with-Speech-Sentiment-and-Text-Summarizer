@@ -19,6 +19,7 @@ def main(args):
 
     model_state_dict = checkpoint['state_dict']
     new_state_dict = OrderedDict()
+    
     for k, v in model_state_dict.items():
         name = k.replace("model.", "")
         new_state_dict[name] = v
