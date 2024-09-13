@@ -7,7 +7,7 @@ import torchaudio.transforms as transforms
 import numpy as np
 
 from torch.utils.data import DataLoader, Dataset
-from utils import TextTransform       # Comment this for engine inference
+# from utils import TextTransform       # Comment this for engine inference
 
 
 class LogMelSpec(nn.Module):
@@ -37,7 +37,6 @@ class CustomAudioDataset(Dataset):
         print(f'Loading json data from {json_path}')
         with open(json_path, 'r') as f:
             self.data = json.load(f)
-        # print(self.data)
         self.text_process = TextTransform()                 # Initialize TextProcess for text processing
         self.log_ex = log_ex
 
@@ -63,15 +62,10 @@ class CustomAudioDataset(Dataset):
         try:
             waveform, _ = torchaudio.load(file_path)        # Point to location of audio data
             utterance = item['text'].lower()                # Point to sentence of audio data
-            # print(waveform, sample_rate)
-            # print('Sentences:', utterance)
             label = self.text_process.text_to_int(utterance)
             spectrogram = self.audio_transforms(waveform)   # (channel, feature, time)
             spec_len = spectrogram.shape[-1] // 2
             label_len = len(label)
-
-            # print(f'SpecShape: {spectrogram.shape} \t shape[-1]: {spectrogram.shape[-1]}')
-            # print(f'Speclen: {spec_len} \t Label_len: {label_len}')
 
             if spec_len < label_len:
                 raise Exception('spectrogram len is bigger then label len')
@@ -81,8 +75,7 @@ class CustomAudioDataset(Dataset):
                 raise Exception('spectrogram to big. size %s' %spectrogram.shape[2])
             if label_len == 0:
                 raise Exception('label len is zero... skipping %s' %file_path)
-            
-            # print(f'{idx}. {utterance}')
+
             return spectrogram, label, spec_len, label_len
 
         except Exception as e:
@@ -119,14 +112,9 @@ class SpeechDataModule(pl.LightningDataModule):
                 continue
 
             spectrograms.append(spectrogram.squeeze(0).transpose(0, 1))
-            # print(len(spectrograms))
-            # print(f'Label Check: {label}')
             labels.append(torch.Tensor(label))
             input_lengths.append(spectrogram.shape[-1] // 2)
             label_lengths.append(len(label))
-        # Print the shapes of spectrograms before padding
-        # for spec in spectrograms:
-        #     print("Spec before padding:", spec.shape)
 
         # NOTE: https://www.geeksforgeeks.org/how-do-you-handle-sequence-padding-and-packing-in-pytorch-for-rnns/
         spectrograms = nn.utils.rnn.pad_sequence(spectrograms, batch_first=True).unsqueeze(1).transpose(2, 3)
@@ -142,7 +130,7 @@ class SpeechDataModule(pl.LightningDataModule):
                           shuffle=True, 
                           collate_fn=lambda x: self.data_processing(x), 
                           num_workers=self.num_workers, 
-                          pin_memory=True)      # Optimizes data-transfer speed for CUDA
+                          pin_memory=True)      # Optimizes data-transfer speed
 
     def val_dataloader(self):
         return DataLoader(self.test_dataset, 

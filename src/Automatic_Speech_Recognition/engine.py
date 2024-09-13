@@ -57,7 +57,7 @@ class SpeechRecognitionEngine:
         """
         self.listener = Listener(sample_rate=16000)
         self.model = torch.jit.load(model_file)
-        self.model.eval().to('cpu')  # Run on cpu
+        self.model.eval().to('cpu')                                             # Run on cpu
         self.featurizer = get_featurizer(16000)
         self.audio_q = list()
         self.hidden = (torch.zeros(4, 1, 1024), torch.zeros(4, 1, 1024))        # num_layers*2, 1, hidden_size
@@ -153,9 +153,9 @@ class DemoAction:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="demoing the speech recognition engine in terminal.")
     parser.add_argument('--model_file', type=str, default=None, required=True,
-                        help='optimized file to load. use freeze.py')
+                        help='Optimized file to load and run inference. Use freeze.py')
     parser.add_argument('--ken_lm_file', type=str, default=None, required=False,
-                        help='If you have an ngram lm use to decode')
+                        help='Use n-gram lm to decode')  
 
     args = parser.parse_args()
 
@@ -163,7 +163,6 @@ if __name__ == "__main__":
     asr_engine = SpeechRecognitionEngine(args.model_file, args.ken_lm_file)
     action = DemoAction()
 
-    # Start the speech recognition engine 
-    # and wait for the threading event to keep the program running
+    # Start the speech recognition engine and wait for the threading event to keep the program running
     asr_engine.run(action)
     threading.Event().wait()
