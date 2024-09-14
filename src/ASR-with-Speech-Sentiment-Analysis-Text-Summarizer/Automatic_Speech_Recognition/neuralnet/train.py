@@ -38,6 +38,8 @@ class ASRTrainer(pl.LightningModule):
 
         # Metrics
         self.losses = []
+        self.val_cer_list = []
+        self.val_wer_list = []
         self.loss_fn = nn.CTCLoss(blank=28, zero_infinity=True)
 
         # Precompute sync_dist for distributed GPUs train
@@ -87,41 +89,43 @@ class ASRTrainer(pl.LightningModule):
         loss, y_pred, labels, label_lengths = self._common_step(batch, batch_idx)
         self.losses.append(loss)
 
-        # Decode predictions and calculate CER & WER
         val_cer, val_wer = [], []
+        
+        # Greedy decoding
         decoded_preds, decoded_targets = GreedyDecoder(y_pred.transpose(0, 1), labels, label_lengths)
         
+        # Decode CER & WER
         for i in range(len(decoded_preds)):
             log_targets = decoded_targets[i]
             log_preds = {"Preds": decoded_preds[i]}
             
+            # Calculate CER and WER for both Greedy and Beam Search
             val_cer.append(cer(decoded_targets[i], decoded_preds[i]))
             val_wer.append(wer(decoded_targets[i], decoded_preds[i]))
 
-        # Log predictions for the last batch
-        log_targets = decoded_targets[-1]
-        log_preds = {"Val_Preds": decoded_preds[-1]}
+        # Log final predictions
         self.logger.experiment.log_text(text=log_targets, metadata=log_preds)
 
-        avg_cer = sum(val_cer) / len(val_cer)
-        avg_wer = sum(val_wer) / len(val_wer)
-
-        self.log_dict({
-        'val_cer': avg_cer,
-        'val_wer': avg_wer,
-        }, 
-        on_step=False, on_epoch=True, prog_bar=True, logger=True, 
-        batch_size=batch_idx, sync_dist=self.sync_dist)
+         # Extend the lists with batch results
+        self.val_cer_list.extend(val_cer)
+        self.val_wer_list.extend(val_wer)
 
         return {'val_loss': loss}
 
 
     def on_validation_epoch_end(self):
         avg_loss = torch.stack(self.losses).mean()
+        avg_cer = sum(self.val_cer_list) / len(self.val_cer_list)
+        avg_wer = sum(self.val_wer_list) / len(self.val_wer_list)
 
-        self.log('val_loss', avg_loss.item(), on_step=False, on_epoch=True, prog_bar=True, logger=True, 
-                             sync_dist=self.sync_dist)
-        self.losses.clear()     # Clear losses for next epochs
+        self.log('val_loss', avg_loss.item(), on_step=False, on_epoch=True, prog_bar=True, logger=True, sync_dist=self.sync_dist)
+        self.log('val_cer', avg_cer, on_step=False, on_epoch=True, prog_bar=True, logger=True, sync_dist=self.sync_dist)
+        self.log('val_wer', avg_wer, on_step=False, on_epoch=True, prog_bar=True, logger=True, sync_dist=self.sync_dist)
+
+        # Clear the metrics after epoch end to avoid accumulation
+        self.losses.clear()
+        self.val_cer_list.clear()
+        self.val_wer_list.clear()
 
 
     def predict_step(self, batch, batch_idx):
@@ -158,27 +162,12 @@ def main(args):
         'num_classes': 29,                    # Output Classes
     }
 
-    # Create model
-    if args.gpus > 1:
-        model = ConformerASR(encoder_params, decoder_params)
-    else:
-        model = torch.compile(ConformerASR(encoder_params, decoder_params),
-                              mode='default')
-        print("Compiled Architecture for faster training")
+    # Model Instance
+    model = ConformerASR(encoder_params, decoder_params)
 
-    # Load checkpoint and adjust epochs if checkpoint path is provided
+    # Adjust epochs if checkpoint path is provided
     if args.checkpoint_path:
-        checkpoint = torch.load(args.checkpoint_path)
-
-        new_state_dict = OrderedDict()
-        for k, v in checkpoint["state_dict"].items():
-            name = k.replace('module.', '')            # remove 'module.' from key
-            new_state_dict[name] = v
-
         args.epochs += checkpoint['epoch'] 
-        # Load state_dict with strict=False
-        model.load_state_dict(new_state_dict, strict=False)
-        model.load_state_dict(checkpoint["state_dict"], strict=False)
 
     speech_trainer = ASRTrainer(model=model, args=args)
 
@@ -217,7 +206,7 @@ def main(args):
     
     # Fit the model to the training data using the Trainer's fit method.
     ckpt_path = args.checkpoint_path if args.checkpoint_path else None
-    trainer.fit(speech_trainer, data_module)   
+    trainer.fit(speech_trainer, data_module, ckpt_path=ckpt_path)   
     trainer.validate(speech_trainer, data_module)
 
 if __name__ == "__main__":
@@ -239,8 +228,7 @@ if __name__ == "__main__":
     parser.add_argument('-lr', '--learning_rate', default=3e-5, type=float, help='learning rate')
     parser.add_argument('--precision', default='16-mixed', type=str, help='precision')
     parser.add_argument('--lr_step_size', type=int, default=10, help='Number of epochs for step decay') 
-    parser.add_argument('--lr_gamma', type=float, default=0.75, help='Decay factor') 
-    
+    parser.add_argument('--lr_gamma', type=float, default=0.5, help='Decay factor') 
     
     # Checkpoint path
     parser.add_argument('--checkpoint_path', default=None, type=str, help='path to a checkpoint file to resume training')

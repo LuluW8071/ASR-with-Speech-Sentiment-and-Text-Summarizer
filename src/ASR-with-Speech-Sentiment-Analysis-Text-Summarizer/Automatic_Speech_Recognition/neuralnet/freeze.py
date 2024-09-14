@@ -1,30 +1,56 @@
 """ Freezes and optimize the model. Use after training"""
 import argparse
 import torch
-from model import SpeechRecognition
+
+from torch import nn
+from model import ConformerEncoder, LSTMDecoder
 from collections import OrderedDict
+
+class ConformerASR(nn.Module):
+    def __init__(self, encoder_params, decoder_params):
+        super(ConformerASR, self).__init__()
+        self.encoder = ConformerEncoder(**encoder_params)
+        self.decoder = LSTMDecoder(**decoder_params)
+
+    def forward(self, x):
+        encoder_output = self.encoder(x)
+        decoder_output = self.decoder(encoder_output)
+        return decoder_output
 
 def trace(model):
     model.eval()
-    x = torch.rand(1, 128, 300)
-    hidden = model._init_hidden(1)
-    traced = torch.jit.trace(model, (x, hidden))
+    x = torch.rand(1, 128, 80)  # (Batch_size, seq_length, input_feat)
+    traced = torch.jit.trace(model, x)
     return traced
+
+encoder_params = {
+        'd_input': 80,  # input features
+        'd_model': 144,
+        'num_layers': 16,
+        'conv_kernel_size': 31,
+        'feed_forward_residual_factor': 0.5,
+        'feed_forward_expansion_factor': 4,
+        'num_heads': 4,
+        'dropout': 0.1,
+    }
+    
+
+decoder_params = {
+        'd_encoder': 144,  # Should match d_model of encoder
+        'd_decoder': 320,
+        'num_layers': 1,
+        'num_classes': 29,  # Adjust based on your output classes
+    }
+
 
 def main(args):
     print("loading model from", args.model_checkpoint)
     checkpoint = torch.load(args.model_checkpoint, map_location=torch.device('cpu'))
-    h_params = SpeechRecognition.hyper_parameters
-    model = SpeechRecognition(**h_params)
-
-    model_state_dict = checkpoint['state_dict']
-    new_state_dict = OrderedDict()
     
-    for k, v in model_state_dict.items():
-        name = k.replace("model.", "")
-        new_state_dict[name] = v
-
-    model.load_state_dict(new_state_dict)
+    model = ConformerASR(encoder_params, decoder_params)
+    model_state_dict = checkpoint['state_dict']
+    encoder_weights = {k: v for k, v in model_state_dict.items() if k.startswith("encoder.")}
+    decoder_weights = {k: v for k, v in model_state_dict.items() if k.startswith("decoder.")}
 
     print("tracing model...")
     traced_model = trace(model)
