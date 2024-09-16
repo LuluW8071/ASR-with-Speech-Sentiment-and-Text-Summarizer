@@ -19,7 +19,7 @@ class ConformerASR(nn.Module):
 
 def trace(model):
     model.eval()
-    x = torch.rand(1, 128, 80)  # (Batch_size, seq_length, input_feat)
+    x = torch.rand(1, 300, 80)  # (Batch_size, seq_length, input_feat)
     traced = torch.jit.trace(model, x)
     return traced
 

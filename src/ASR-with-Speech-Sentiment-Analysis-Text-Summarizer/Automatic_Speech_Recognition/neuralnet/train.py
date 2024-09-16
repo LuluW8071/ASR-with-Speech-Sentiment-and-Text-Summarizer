@@ -8,7 +8,8 @@ import torch.optim as optim
 from torch import nn
 from pytorch_lightning.callbacks import ModelCheckpoint, LearningRateMonitor, EarlyStopping
 from pytorch_lightning.loggers import CometLogger
-
+from collections import OrderedDict
+# Load API
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -16,7 +17,6 @@ from dataset import SpeechDataModule
 from model import ConformerEncoder, LSTMDecoder
 from utils import GreedyDecoder
 from scorer import wer, cer
-
 
 class ConformerASR(nn.Module):
     def __init__(self, encoder_params, decoder_params):
@@ -29,7 +29,6 @@ class ConformerASR(nn.Module):
         decoder_output = self.decoder(encoder_output)
         return decoder_output
 
-
 class ASRTrainer(pl.LightningModule):
     def __init__(self, model, args):
         super(ASRTrainer, self).__init__()
@@ -41,13 +40,15 @@ class ASRTrainer(pl.LightningModule):
         self.val_cer_list = []
         self.val_wer_list = []
         self.loss_fn = nn.CTCLoss(blank=28, zero_infinity=True)
-
-        # Precompute sync_dist for distributed GPUs train
+        
+        # Precompute sync_dist for distributed GPUs training
         self.sync_dist = True if args.gpus > 1 else False
+
+        # Save the hyperparams of checkpoint
+        self.save_hyperparameters()
 
     def forward(self, x):
         return self.model(x)
-    
     
     def configure_optimizers(self):
         optimizer = optim.AdamW(
@@ -68,7 +69,6 @@ class ASRTrainer(pl.LightningModule):
         }
 
         return [optimizer], [scheduler]
-    
     
     def _common_step(self, batch, batch_idx):
         spectrograms, labels, input_lengths, label_lengths, references, mask = batch
@@ -122,7 +122,6 @@ class ASRTrainer(pl.LightningModule):
         self.log('val_cer', avg_cer, on_step=False, on_epoch=True, prog_bar=True, logger=True, sync_dist=self.sync_dist)
         self.log('val_wer', avg_wer, on_step=False, on_epoch=True, prog_bar=True, logger=True, sync_dist=self.sync_dist)
 
-        # Clear the metrics after epoch end to avoid accumulation
         self.losses.clear()
         self.val_cer_list.clear()
         self.val_wer_list.clear()
@@ -131,38 +130,53 @@ class ASRTrainer(pl.LightningModule):
     def predict_step(self, batch, batch_idx):
         pass
 
+    def on_load_checkpoint(self, checkpoint):
+        # Loading encoder and decoder states if needed
+        encoder_state = checkpoint['state_dict']['encoder']
+        decoder_state = checkpoint['state_dict']['decoder']
+        self.encoder.load_state_dict(encoder_state)
+        self.decoder.load_state_dict(decoder_state)
 
 def main(args):
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
-
+    
+    directory = "data"
+    if not os.path.exists(directory):
+        os.makedirs(directory)
+        
     # Prepare dataset
     data_module = SpeechDataModule(batch_size=args.batch_size,
-                                   train_json=args.train_json,
-                                   test_json=args.valid_json, 
+                                   train_url=[
+                                    "train-clean-100", 
+                                    "train-clean-360", 
+                                    "train-other-500",
+                                   ],
+                                   test_url=[
+                                    "test-clean", 
+                                    "test-other"
+                                   ],
                                    num_workers=args.num_workers)
     data_module.setup()
 
     # Define model hyperparameters
-    # https://arxiv.org/pdf/2005.08100 : Table 1 for conformer parameters
     encoder_params = {
-        'd_input': 80,                        # Input features: n-mels
-        'd_model': 144,                       # Encoder Dims
-        'num_layers': 16,                     # Encoder Layers
+        'd_input': 80,  # input features
+        'd_model': 144,
+        'num_layers': 16,
         'conv_kernel_size': 31,
         'feed_forward_residual_factor': 0.5,
         'feed_forward_expansion_factor': 4,
-        'num_heads': 4,                       # Relative MultiHead Attetion Heads
+        'num_heads': 4,
         'dropout': 0.1,
     }
-
+    
     decoder_params = {
-        'd_encoder': 144,                     # Match with Encoder layer
-        'd_decoder': 320,                     # Decoder Dim
-        'num_layers': 1,                      # Decoder Layer
-        'num_classes': 29,                    # Output Classes
+        'd_encoder': 144,   # Should match d_model of encoder
+        'd_decoder': 320,
+        'num_layers': 1,
+        'num_classes': 29,  # Adjust based on your output classes
     }
 
-    # Model Instance
     model = ConformerASR(encoder_params, decoder_params)
 
     # Adjust epochs if checkpoint path is provided
@@ -179,8 +193,8 @@ def main(args):
     checkpoint_callback = ModelCheckpoint(
         monitor='val_loss',
         dirpath="./saved_checkpoint/",
-        filename='ASR-{epoch:02d}-{val_loss:.2f}',
-        save_top_k=3,        # 3 Checkpoints
+        filename='ASR-{epoch:02d}-{val_wer:.2f}',
+        save_top_k=3,
         mode='min'
     )
 
@@ -204,34 +218,35 @@ def main(args):
         
     trainer = pl.Trainer(**trainer_args)
     
-    # Fit the model to the training data using the Trainer's fit method.
+    # Automatically restores model, epoch, step, LR schedulers, etc...
     ckpt_path = args.checkpoint_path if args.checkpoint_path else None
-    trainer.fit(speech_trainer, data_module, ckpt_path=ckpt_path)   
+
+    trainer.fit(speech_trainer, data_module, ckpt_path=ckpt_path)
     trainer.validate(speech_trainer, data_module)
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Train ASR Model")
 
     # Train Device Hyperparameters
     parser.add_argument('-g', '--gpus', default=1, type=int, help='number of gpus per node')
-    parser.add_argument('-w', '--num_workers', default=2, type=int, help='n data loading workers')
-    parser.add_argument('-db', '--dist_backend', default='ddp', type=str,
+    parser.add_argument('-w', '--num_workers', default=0, type=int, help='n data loading workers, default 0 = main process only')
+    parser.add_argument('-db', '--dist_backend', default='ddp_find_unused_parameters_true', type=str,
                         help='which distributed backend to use for aggregating multi-gpu train')
 
-    # Train and Valid File
-    parser.add_argument('--train_json', default=None, required=True, type=str, help='json file to load training data')                   
-    parser.add_argument('--valid_json', default=None, required=True, type=str, help='json file to load testing data')
-
     # General Train Hyperparameters
-    parser.add_argument('--epochs', default=10, type=int, help='number of total epochs to run')
+    parser.add_argument('--epochs', default=20, type=int, help='number of total epochs to run')
     parser.add_argument('--batch_size', default=64, type=int, help='size of batch')
-    parser.add_argument('-lr', '--learning_rate', default=3e-5, type=float, help='learning rate')
+    parser.add_argument('-lr', '--learning_rate', default=3e-4, type=float, help='learning rate')
     parser.add_argument('--precision', default='16-mixed', type=str, help='precision')
     parser.add_argument('--lr_step_size', type=int, default=10, help='Number of epochs for step decay') 
-    parser.add_argument('--lr_gamma', type=float, default=0.5, help='Decay factor') 
+    parser.add_argument('--lr_gamma', type=float, default=0.5, help='Decay factor')  
     
+    # Params
+    parser.add_argument('--steps', default=10000, type=int, help='val every n steps')
+
     # Checkpoint path
-    parser.add_argument('--checkpoint_path', default=None, type=str, help='path to a checkpoint file to resume training')
+    parser.add_argument('--checkpoint_path', default=None, type=str, help='path to a checkpoint file to load and resume training')
 
     args = parser.parse_args()
     main(args)
