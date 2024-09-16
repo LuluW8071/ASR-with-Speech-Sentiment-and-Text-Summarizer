@@ -8,26 +8,16 @@ import torch.optim as optim
 from torch import nn
 from pytorch_lightning.callbacks import ModelCheckpoint, LearningRateMonitor, EarlyStopping
 from pytorch_lightning.loggers import CometLogger
-from collections import OrderedDict
+
 # Load API
 from dotenv import load_dotenv
 load_dotenv()
 
 from dataset import SpeechDataModule
-from model import ConformerEncoder, LSTMDecoder
+from model import SpeechRecognition
 from utils import GreedyDecoder
 from scorer import wer, cer
 
-class ConformerASR(nn.Module):
-    def __init__(self, encoder_params, decoder_params):
-        super(ConformerASR, self).__init__()
-        self.encoder = ConformerEncoder(**encoder_params)
-        self.decoder = LSTMDecoder(**decoder_params)
-
-    def forward(self, x):
-        encoder_output = self.encoder(x)
-        decoder_output = self.decoder(encoder_output)
-        return decoder_output
 
 class ASRTrainer(pl.LightningModule):
     def __init__(self, model, args):
@@ -48,7 +38,7 @@ class ASRTrainer(pl.LightningModule):
         self.save_hyperparameters()
 
     def forward(self, x):
-        return self.model(x)
+        return self.model(x, hidden)
     
     def configure_optimizers(self):
         optimizer = optim.AdamW(
@@ -71,9 +61,12 @@ class ASRTrainer(pl.LightningModule):
         return [optimizer], [scheduler]
     
     def _common_step(self, batch, batch_idx):
-        spectrograms, labels, input_lengths, label_lengths, references, mask = batch
-        output = self(spectrograms)     # Directly calls forward method of conformer
-        output = F.log_softmax(output, dim=-1).transpose(0, 1)
+        spectrograms, labels, input_lengths, label_lengths = batch
+        bs = spectrograms.shape[0]
+        hidden = self.model._init_hidden(bs)
+        hn, c0 = hidden[0].to(self.device), hidden[1].to(self.device)
+        output, _ = self(spectrograms, (hn, c0))
+        output = F.log_softmax(output, dim=2)
         
         loss = self.loss_fn(output, labels, input_lengths, label_lengths)
         return loss, output, labels, label_lengths
@@ -130,13 +123,6 @@ class ASRTrainer(pl.LightningModule):
     def predict_step(self, batch, batch_idx):
         pass
 
-    def on_load_checkpoint(self, checkpoint):
-        # Loading encoder and decoder states if needed
-        encoder_state = checkpoint['state_dict']['encoder']
-        decoder_state = checkpoint['state_dict']['decoder']
-        self.encoder.load_state_dict(encoder_state)
-        self.decoder.load_state_dict(decoder_state)
-
 def main(args):
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     
@@ -158,32 +144,16 @@ def main(args):
                                    num_workers=args.num_workers)
     data_module.setup()
 
-    # Define model hyperparameters
-    encoder_params = {
-        'd_input': 80,  # input features
-        'd_model': 144,
-        'num_layers': 16,
-        'conv_kernel_size': 31,
-        'feed_forward_residual_factor': 0.5,
-        'feed_forward_expansion_factor': 4,
-        'num_heads': 4,
-        'dropout': 0.1,
-    }
-    
-    decoder_params = {
-        'd_encoder': 144,   # Should match d_model of encoder
-        'd_decoder': 320,
-        'num_layers': 1,
-        'num_classes': 29,  # Adjust based on your output classes
-    }
-
-    model = ConformerASR(encoder_params, decoder_params)
+    # Log hyperparams of model and setup trainer
+    h_params = SpeechRecognition.hyper_parameters
+    model = SpeechRecognition(**h_params)
 
     # Adjust epochs if checkpoint path is provided
     if args.checkpoint_path:
-        args.epochs += checkpoint['epoch'] 
+        args.epochs += checkpoint['epoch']
 
-    speech_trainer = ASRTrainer(model=model, args=args)
+    speech_trainer = ASRTrainer(model=model, 
+                                args=args)
 
     # NOTE: Comet Logger
     comet_logger = CometLogger(api_key=os.getenv('API_KEY'),

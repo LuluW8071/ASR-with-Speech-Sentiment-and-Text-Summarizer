@@ -8,14 +8,13 @@ from torch.utils.data import DataLoader, Dataset
 from utils import TextTransform     # Comment this for ASR engine inference
 
 class LogMelSpec(nn.Module):
-    def __init__(self, sample_rate=16000,
-                hop_length=160, n_mels=80):
+    def __init__(self, sample_rate=16000, n_mels=128, win_length=400, hop_length=160, n_fft=1024):
         super(LogMelSpec, self).__init__()
-        self.transform = transforms.MelSpectrogram(
-            sample_rate=sample_rate, 
-            n_mels=n_mels,
-            hop_length=hop_length
-        )
+        self.transform = transforms.MelSpectrogram(sample_rate=sample_rate, 
+                                                   n_mels=n_mels,
+                                                   win_length=win_length,
+                                                   hop_length=hop_length, 
+                                                   n_fft = n_fft)
 
     def forward(self, x):
         x = self.transform(x)
@@ -23,8 +22,12 @@ class LogMelSpec(nn.Module):
         return x
 
 
-def get_featurizer(sample_rate, n_feats=80, hop_length=160):
-    return LogMelSpec(sample_rate=sample_rate, n_mels=n_feats, hop_length=hop_length)
+def get_featurizer(sample_rate=16000, n_mels=128, win_length=400, hop_length=160, n_fft=1024):
+    return LogMelSpec(sample_rate=sample_rate, 
+                      n_mels=n_mels,
+                      win_length=win_length,
+                      hop_length=hop_length, 
+                      n_fft = n_fft)
 
 
 class CustomAudioDataset(Dataset):
@@ -34,13 +37,14 @@ class CustomAudioDataset(Dataset):
         self.log_ex = log_ex
 
         if valid:
-            self.audio_transforms = nn.Sequential(LogMelSpec())
+            self.audio_transforms = torch.nn.Sequential(
+                LogMelSpec()
+            )
         else:
-            time_masks = [torchaudio.transforms.TimeMasking(time_mask_param=15, p=0.05) for _ in range(10)]
-            self.audio_transforms = nn.Sequential(
+            self.audio_transforms = torch.nn.Sequential(
                 LogMelSpec(),
-                transforms.FrequencyMasking(freq_mask_param=15),
-                *time_masks,
+                transforms.FrequencyMasking(freq_mask_param=30),
+                transforms.TimeMasking(time_mask_param=70)
             )
 
     def __len__(self):
@@ -99,15 +103,14 @@ class SpeechDataModule(pl.LightningDataModule):
         self.test_dataset = CustomAudioDataset(combined_test_dataset, valid=True)
 
     def data_processing(self, data):
-        spectrograms, labels, references, input_lengths, label_lengths = [], [], [], [], []
+        spectrograms, labels, input_lengths, label_lengths = [], [], [], []
         for (spectrogram, label, input_length, label_length) in data:
             if spectrogram is None:
                 continue
             spectrograms.append(spectrogram.squeeze(0).transpose(0, 1))
             labels.append(torch.Tensor(label))
-            input_lengths.append(((spectrogram.shape[-1] - 1) // 2 - 1) // 2)
+            input_lengths.append(input_length)
             label_lengths.append(label_length)
-            references.append(self.text_process.int_to_text(label))  # Convert label back to text
 
         # Pad the spectrograms to have the same width (time dimension)
         spectrograms = nn.utils.rnn.pad_sequence(spectrograms, batch_first=True)
@@ -117,11 +120,8 @@ class SpeechDataModule(pl.LightningDataModule):
         input_lengths = torch.tensor(input_lengths, dtype=torch.long)
         label_lengths = torch.tensor(label_lengths, dtype=torch.long)
 
-        mask = torch.ones(spectrograms.shape[0], spectrograms.shape[1], spectrograms.shape[1])
-        for i, l in enumerate(input_lengths):
-            mask[i, :, :l] = 0
 
-        return spectrograms, labels, input_lengths, label_lengths, references, mask.bool()
+        return spectrograms, labels, input_lengths, label_lengths
         
     def train_dataloader(self):
         return DataLoader(self.train_dataset,
