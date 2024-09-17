@@ -136,10 +136,12 @@ def main(args):
                                     "train-clean-100", 
                                     "train-clean-360", 
                                     "train-other-500",
+                                    "dev-other"
                                    ],
                                    test_url=[
                                     "test-clean", 
-                                    "test-other"
+                                    "test-other",
+                                    "dev-clean"
                                    ],
                                    num_workers=args.num_workers)
     data_module.setup()

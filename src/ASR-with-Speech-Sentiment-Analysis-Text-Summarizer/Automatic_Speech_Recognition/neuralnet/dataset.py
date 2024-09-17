@@ -113,7 +113,7 @@ class SpeechDataModule(pl.LightningDataModule):
             label_lengths.append(label_length)
 
         # Pad the spectrograms to have the same width (time dimension)
-        spectrograms = nn.utils.rnn.pad_sequence(spectrograms, batch_first=True)
+        spectrograms = nn.utils.rnn.pad_sequence(spectrograms, batch_first=True).unsqueeze(1).transpose(2, 3)
         labels = nn.utils.rnn.pad_sequence(labels, batch_first=True)
 
         # Convert input_lengths and label_lengths to tensors
