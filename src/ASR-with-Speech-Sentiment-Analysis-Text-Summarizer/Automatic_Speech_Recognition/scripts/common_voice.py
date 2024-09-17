@@ -1,7 +1,6 @@
 import os
 import argparse
 import random
-import json
 import csv
 import sox
 from tqdm import tqdm
@@ -9,95 +8,95 @@ from multiprocessing.pool import ThreadPool
 from pathlib import Path
 from sox.core import SoxiError
 
+
 def clean_text(text):
-    characters_to_remove = ':!,"‘’;—?'
+    characters_to_remove = ':!,"'';—?'
     translator = str.maketrans('', '', characters_to_remove)
     return text.translate(translator)
 
-def process_file(row, clips_directory, directory, output_format):
+def process_file(row, output_directory, input_directory, output_format):
     file_name = row['path']
-    clips_name = file_name.rpartition('.')[0] + '.' + output_format 
+    output_name = file_name.rpartition('.')[0] + '.' + output_format 
     text = clean_text(row['sentence'])
-    audio_path = os.path.join(directory, 'clips', file_name)
-    output_audio_path = os.path.join(clips_directory, clips_name)
+    input_audio_path = os.path.join(input_directory, 'clips', file_name)
+    output_audio_path = os.path.join(output_directory, output_name)
 
     # Skip conversion if the output file already exists
     if os.path.exists(output_audio_path):
-        return {'key': clips_directory + '/' + clips_name, 'text': text}
+        return os.path.splitext(output_name)[0], text
 
     # Check if the input file is valid before processing
     try:
         tfm = sox.Transformer()
         tfm.rate(samplerate=16000)
-        tfm.build(input_filepath=audio_path, output_filepath=output_audio_path)
+        tfm.build(input_filepath=input_audio_path, output_filepath=output_audio_path)
     except SoxiError:
-        print(f"Skipping file due to SoxiError: {audio_path}")
+        print(f"Skipping file due to SoxiError: {input_audio_path}")
         return None
 
-    return {'key': clips_directory + '/' + clips_name, 'text': text}
+    return os.path.splitext(output_name)[0], text
 
 def main(args):
-    data = []
-    directory = args.file_path.rpartition('/')[0]
+    input_directory = args.file_path.rpartition('/')[0]
     percent = args.percent
-    clips_directory = os.path.abspath(os.path.join(args.save_json_path, 'clips'))
+    train_directory = os.path.abspath(os.path.join(args.save_path, 'common-voice-train'))
+    test_directory = os.path.abspath(os.path.join(args.save_path, 'common-voice-test'))
 
-    if not os.path.exists(clips_directory):
-        os.makedirs(clips_directory)
+    for directory in [train_directory, test_directory]:
+        if not os.path.exists(directory):
+            os.makedirs(directory)
 
     with open(args.file_path, encoding="utf-8") as f:
         length = sum(1 for _ in f) - 1
 
     with open(args.file_path, newline='', encoding="utf-8") as csv_file:
         reader = csv.DictReader(csv_file, delimiter='\t')
-        data_to_process = [(row, clips_directory, directory, args.output_format) for row in reader]
+        data_to_process = list(reader)
 
-    if args.convert:
-        print(f"{length} files found. Converting MP3 to {args.output_format.upper()} using {args.num_workers} workers.")
-        with ThreadPool(args.num_workers) as pool:
-            results = list(tqdm(pool.imap(lambda x: process_file(*x), data_to_process), total=length))
-            data = [result for result in results if result is not None]
-    else:
-        for row in data_to_process:
-            file_name = row[0]['path']
-            clips_name = file_name.rpartition('.')[0] + '.' + args.output_format
-            text = clean_text(row[0]['sentence'])
-            data.append({'key': clips_directory + '/' + clips_name, 'text': text})
+    random.shuffle(data_to_process)
+    split_index = int(length * (1 - percent / 100))
+    train_data = data_to_process[:split_index]
+    test_data = data_to_process[split_index:]
 
-    random.shuffle(data)
-    print("Creating train and test JSON sets")
+    def process_dataset(dataset, output_directory):
+        if args.convert:
+            print(f"Processing {len(dataset)} files for {os.path.basename(output_directory)}. Converting to {args.output_format.upper()} using {args.num_workers} workers.")
+            with ThreadPool(args.num_workers) as pool:
+                results = list(tqdm(pool.imap(lambda x: process_file(x, output_directory, input_directory, args.output_format), dataset), total=len(dataset)))
+        else:
+            results = [(row['path'].rpartition('.')[0], clean_text(row['sentence'])) for row in dataset]
 
-    train_data = data[:int(length * (1 - percent / 100))]
-    test_data = data[int(length * (1 - percent / 100)):]
+        results = [result for result in results if result is not None]
+        
+        with open(os.path.join(output_directory, 'trans.txt'), 'w', encoding='utf-8') as f:
+            for filename, text in results:
+                f.write(f"{filename} {text}\n")
 
-    with open(os.path.join(args.save_json_path, 'train.json'), 'w', encoding='utf-8') as f:
-        json.dump(train_data, f, ensure_ascii=False, indent=4)
-
-    with open(os.path.join(args.save_json_path, 'test.json'), 'w', encoding='utf-8') as f:
-        json.dump(test_data, f, ensure_ascii=False, indent=4)
+    process_dataset(train_data, train_directory)
+    process_dataset(test_data, test_directory)
 
     print("Done!")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=
                                      """
-                                        Utility script to convert CommonVoice MP3 to FLAC and
-                                        split train and test JSON files for training ASR model. 
+                                     Utility script to convert CommonVoice MP3 to FLAC/WAV and
+                                     split train and test data into separate directories with trans.txt files.
                                      """
                                     )
-    parser.add_argument('--file_path', type=str, default=None, required=True,
+    parser.add_argument('--file_path', type=str, required=True,
                         help='path to one of the .tsv files found in cv-corpus')
-    parser.add_argument('--save_json_path', type=str, default=None, required=True,
-                        help='path to the dir where the json files are supposed to be saved')
-    parser.add_argument('--percent', type=int, default=10, required=False,
-                        help='percent of clips put into test.json instead of train.json')
-    parser.add_argument('--convert', default=True, action='store_true',
-                        help='indicates that the script should convert mp3 to flac')
+    parser.add_argument('--save_path', type=str, required=True,
+                        help='path to the directory where train and test subdirectories will be created')
+    parser.add_argument('--percent', type=int, default=10,
+                        help='percent of clips put into test set instead of train set')
+    parser.add_argument('--convert', action='store_true',
+                        help='indicates that the script should convert mp3 to the specified output format')
     parser.add_argument('--not-convert', dest='convert', action='store_false',
-                        help='indicates that the script should not convert mp3 to flac')
-    parser.add_argument('-w','--num_workers', type=int, default=2,
+                        help='indicates that the script should not convert mp3 to the specified output format')
+    parser.add_argument('-w', '--num_workers', type=int, default=2,
                         help='number of worker threads for processing')
-    parser.add_argument('--output_format', type=str, default='flac',
+    parser.add_argument('--output_format', type=str, default='flac', choices=['flac', 'wav'],
                         help='output audio format (flac or wav)')
 
     args = parser.parse_args()

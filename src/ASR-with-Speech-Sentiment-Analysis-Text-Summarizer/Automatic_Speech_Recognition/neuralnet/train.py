@@ -37,7 +37,7 @@ class ASRTrainer(pl.LightningModule):
         # Save the hyperparams of checkpoint
         self.save_hyperparameters()
 
-    def forward(self, x):
+    def forward(self, x, hidden):
         return self.model(x, hidden)
     
     def configure_optimizers(self):
