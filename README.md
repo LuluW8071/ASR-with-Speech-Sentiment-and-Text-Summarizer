@@ -44,7 +44,7 @@ This project aims to develop an advanced system that integrates __Automatic Spee
 
 | Base Model </br>(CNN-Bi_LSTM)              | Final Model </br>  |
 |---------------------|-----------------------------------------------|
-| ![Base Model](docs/asr_base_model.png)          |         ![Code in Progress](https://img.shields.io/badge/status-in_progress-red.svg)   
+| ![Base Model](docs/asr_base_model.png)          |         ![Final Model](docs/conformer.png)   
 
 ### 2. SER (Speech Emotion Recognition)
 
