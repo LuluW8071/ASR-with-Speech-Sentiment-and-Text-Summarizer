@@ -7,7 +7,7 @@ import torchaudio.transforms as transforms
 import numpy as np
 
 from torch.utils.data import DataLoader, Dataset
-# from utils import TextTransform       # Comment this for engine inference
+from utils import TextTransform       # Comment this for engine inference
 
 
 class LogMelSpec(nn.Module):
@@ -24,6 +24,7 @@ class LogMelSpec(nn.Module):
         x = np.log(x + 1e-14)  # logarithmic, add small value to avoid inf
         return x
 
+# MelSpec Feature Extraction for ASR Engine Inference
 def get_featurizer(sample_rate=16000, n_mels=128, win_length=400, hop_length=160, n_fft=1024):
     return LogMelSpec(sample_rate=sample_rate, 
                       n_mels=n_mels,
@@ -37,7 +38,9 @@ class CustomAudioDataset(Dataset):
         print(f'Loading json data from {json_path}')
         with open(json_path, 'r') as f:
             self.data = json.load(f)
-        self.text_process = TextTransform()                 # Initialize TextProcess for text processing
+
+        # Initialize TextProcess for text processing    
+        self.text_process = TextTransform()                 
         self.log_ex = log_ex
 
         if valid:
@@ -47,8 +50,8 @@ class CustomAudioDataset(Dataset):
         else:
             self.audio_transforms = torch.nn.Sequential(
                 LogMelSpec(),
-                transforms.FrequencyMasking(freq_mask_param=30),
-                transforms.TimeMasking(time_mask_param=70)
+                transforms.FrequencyMasking(freq_mask_param=30),        # Max possible length of the mask for frequency axis
+                transforms.TimeMasking(time_mask_param=70)              # Max possible length of the mask for time axis
             )
 
 
@@ -79,6 +82,7 @@ class CustomAudioDataset(Dataset):
             return spectrogram, label, spec_len, label_len
 
         except Exception as e:
+            # Print for debugging if letters in sentences have transform issues
             if self.log_ex:
                 print(str(e), file_path)
             return self.__getitem__(idx - 1 if idx != 0 else idx + 1)
@@ -118,7 +122,6 @@ class SpeechDataModule(pl.LightningDataModule):
 
         # NOTE: https://www.geeksforgeeks.org/how-do-you-handle-sequence-padding-and-packing-in-pytorch-for-rnns/
         spectrograms = nn.utils.rnn.pad_sequence(spectrograms, batch_first=True).unsqueeze(1).transpose(2, 3)
-        # print('Padded Spectrograms: ', spectrograms.shape)
         labels = nn.utils.rnn.pad_sequence(labels, batch_first=True)
 
         return spectrograms, labels, input_lengths, label_lengths
