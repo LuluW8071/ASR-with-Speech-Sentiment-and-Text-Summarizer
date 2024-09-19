@@ -23,6 +23,7 @@ def convert_audio(input_path, output_path, output_format="flac"):
         tfm = sox.Transformer()
         tfm.set_output_format(file_type=output_format)
         tfm.rate(samplerate=16000)
+        tfm.channels(1)     # Set to mono channel
         tfm.build(input_filepath=input_path, output_filepath=output_path)
         return True
     except SoxiError as e:
