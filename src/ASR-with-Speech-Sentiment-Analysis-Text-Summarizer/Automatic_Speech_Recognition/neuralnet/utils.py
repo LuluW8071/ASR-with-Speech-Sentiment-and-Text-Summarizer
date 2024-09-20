@@ -51,7 +51,6 @@ class TextTransform:
                 ch = self.char_map['<SPACE>']
             else:
                 ch = self.char_map[c]
-                # print('Mapped Chars:', ch)
             int_sequence.append(ch)
         return int_sequence
 
@@ -61,7 +60,6 @@ class TextTransform:
         string = []
         for i in labels:
             string.append(self.index_map[i]) 
-            # print(string[0])
         return ''.join(string).replace('<SPACE>', ' ')
     
 # Initialize TextProcess for text processing
