@@ -22,14 +22,14 @@ This project aims to develop an advanced system that integrates __Automatic Spee
 - [x] **Baseline Model for SER:** XGBoost
 - [x] **Baseline Model for Text Summarizer:** T5-Small, T5-Base
 - [x] **Final Model for ASR:** Conformer
-- [ ] **Final Model for SER**
+- [ ] **Final Model for SER:** Stacked CNN-BiLSTM with Self-Attention
 - [x] **Final Model for Text Summarizer:** BART Large
 
 ## Goals
 
 - [ ] **Accurate ASR System:** Handle diverse accents and operate effectively in noisy environments
 - [ ] **Emotion Analysis:** Through tone of speech
-- [ ] **Meaningful Text Summarizer:** Preserve critical information without loss
+- [x] **Meaningful Text Summarizer:** Preserve critical information without loss
 - [ ] **Integrated System:** Combine all components to provide real-time transcription and summaries
 
 ## Contributors <img src="https://user-images.githubusercontent.com/74038190/213844263-a8897a51-32f4-4b3b-b5c2-e1528b89f6f3.png" width="25px" />
@@ -83,10 +83,15 @@ git clone --recursive https://github.com/LuluW8071/ASR-with-Speech-Sentiment-and
 >         ```bash
 >         sudo apt update
 >         sudo apt install sox libsox-fmt-all build-essential zlib1g-dev libbz2-dev liblzma-dev
-> 
->         # Verify installation
->         sox --version
 >         ```
+> 
+> - [**PyAudio**](https://people.csail.mit.edu/hubert/pyaudio/)
+>     - **For Linux:**
+>       ```bash
+>       sudo apt-get install libasound-dev portaudio19-dev libportaudio2 libportaudiocpp0
+>       sudo apt-get install ffmpeg libav-tools
+>       sudo pip install pyaudio    
+>       ```
 
 ```bash
 pip install -r requirements.txt
@@ -111,11 +116,7 @@ PROJECT_NAME = "dummy_key"
 > `--not-convert` if you don't want audio conversion
 
 ```bash
-py common_voice.py --file_path file_path/to/validated.tsv
-                   --save_json_path file_path/to/save/json
-                   -w 4
-                   --percent 10
-                   --output_format wav/flac
+py common_voice.py --file_path file_path/to/validated.tsv --save_json_path file_path/to/save/json -w 4 --percent 10 --output_format wav/flac
 ```
 
 #### 2. Train Model
@@ -124,19 +125,80 @@ py common_voice.py --file_path file_path/to/validated.tsv
 > `--checkpoint_path path/to/checkpoint_file` to load pre-trained model and fine tune on it.
 
 ```bash
-py train.py --train_json path/to/train.json
-            --valid_json path/to/test.json
-            -w 4 
-            --batch_size 128 
-            -lr 2e-4 
-            --epochs 20
+py train.py --train_json path/to/train.json --valid_json path/to/test.json -w 4 --batch_size 64 -lr 2e-4 --lr_step_size 10 --lr_gamma 0.2 --epochs 50
 ```
 
 #### 3. Sentence Extraction
 
+> [!NOTE]
+> Run the `extract_sentence.py` to get quick sentence corpus for language modeling.
+
 ```bash
-py extract_sentence.py --file_path file_path/to/validated.tsv
-                       --save_txt_path file_path/to/save/json
+py extract_sentence.py --file_path file_path/to/validated.tsv --save_txt_path file_path/to/save/txt
+```
+
+#### 4. CTC Decoder Installation
+
+> [!WARNING]
+> __CTC Decoder__ can only be installed for Linux. So, make sure you have installed **Ubuntu** or **Linux** OS.
+
+```bash
+sudo apt update
+sudo apt install sox libsox-fmt-all build-essential zlib1g-dev libbz2-dev liblzma-dev
+```
+
+> [!NOTE]
+> After installing CTC Decoder, make sure to create the `pyproject.toml` file inside the `src/ASR-with-Speech-Sentiment-Analysis-Text-Summarizer/Automatic_Speech_Recognition/submodules/ctcdecode` directory and paste the following code:
+
+```toml
+[build-system]
+requires = ["setuptools", "torch"]
+```
+
+Finally, open the terminal in that `ctcdecode` directory & install __CTC Decoder__ using the following command:
+
+```bash
+pip3 install .
+```
+> [!NOTE]
+> This takes few minutes to install.
+
+#### 5. Ken Language Modeling 
+
+> Use the previous extracted sentences to build a language model using [KenLM](https://github.com/kpu/kenlm).
+
+Build __KenLM__ `src/ASR-with-Speech-Sentiment-Analysis-Text-Summarizer/Automatic_Speech_Recognition/submodules/ctcdecode/third_party/kenlm` directory using cmake and compile the language model using $lmplz$:
+
+```bash
+mkdir -p build
+cd build
+cmake ..
+make -j 4
+lmplz -o n <path/to/corpus.txt> <path/save/language/model.arpa>
+```
+
+Follow the instruction on [KenLM repository](https://github.com/kpu/kenlm) `README.md` to convert `.arpa` file to `.bin` for faster inference. 
+
+#### 6. Freeze the Model
+
+After training, freeze the model using `freeze.py`:
+
+```bash
+py freeze.py --model_checkpoint "path/model/speechrecognition.ckpt" --save_path "path/to/save/"
+```
+
+#### 7. ASR Demo:
+
+- For Terminal Inference:
+
+```bash
+python3 engine.py --file_path "path/model/speechrecognition.pt" --kenlm_file "path/to/nglm.arpa or path/to/nglm.bin"
+```
+
+- For Web Interface:
+
+```bash
+python3 app.py --file_path "path/model/speechrecognition.pt" --kenlm_file "path/to/nglm.arpa or path/to/nglm.bin"
 ```
 
 ### Speech Sentiment
@@ -148,28 +210,17 @@ py extract_sentence.py --file_path file_path/to/validated.tsv
 
 
 ```bash
-py downsample.py --file_path path/to/audio_file.csv 
-                 --save_csv_path output/path 
-                 -w 4 
-                 --output_format wav/flac
+py downsample.py --file_path path/to/audio_file.csv --save_csv_path output/path -w 4 --output_format wav/flac
 ```
 
 ```bash
-py augment.py --file_path "path/to/emotion_dataset.csv" 
-              --save_csv_path "output/path" 
-              -w 4 
-              --percent 20
+py augment.py --file_path "path/to/emotion_dataset.csv" --save_csv_path "output/path" -w 4 --percent 20
 ```
 
 #### 2. Train the Model
 
 ```bash
-py neuralnet/train.py --train_csv "path/to/train.csv" 
-                      --test_csv "path/to/test.csv" 
-                      -w 4 
-                      --batch_size 256 
-                      --epochs 25 
-                      -lr 1e-3
+py neuralnet/train.py --train_csv "path/to/train.csv" --test_csv "path/to/test.csv" -w 4 --batch_size 256 --epochs 25 -lr 1e-3
 ```
 
 ### Text Summarization
@@ -182,7 +233,7 @@ py neuralnet/train.py --train_csv "path/to/train.csv"
 
 | Project            | Dataset Source                            | |
 |--------------------|-------------------------------------------|-|
-| __ASR__                | [Mozilla Common Voice](https://commonvoice.mozilla.org/en/datasets)                     | <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcS1rPYa2Q9zPtwLUeZJP3pWeNwmJjRpcLlpdQ&s" width="30px" /> |
+| __ASR__                | [Mozilla Common Voice](https://commonvoice.mozilla.org/en/datasets),  [LibriSpeech](https://www.openslr.org/12/), [Mimic Record Studio](https://github.com/MycroftAI/mimic-recording-studio)                     | <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcS1rPYa2Q9zPtwLUeZJP3pWeNwmJjRpcLlpdQ&s" width="30px" /> <img src="https://dagshub.com/repo-avatars/2561" width="30px" />  <img src="https://avatars.githubusercontent.com/u/14171097?s=200&v=4" width="30px" /> |
 | __SER__   | [RAVDESS](https://www.kaggle.com/datasets/uwrfkaggler/ravdess-emotional-speech-audio), [CremaD](https://www.kaggle.com/datasets/ejlok1/cremad), [TESS](https://www.kaggle.com/datasets/ejlok1/toronto-emotional-speech-set-tess), [SAVEE](https://www.kaggle.com/datasets/ejlok1/surrey-audiovisual-expressed-emotion-savee)                   | <img src="https://go-skill-icons.vercel.app/api/icons?i=kaggle" width="30px"/>  |
 | __Text Summarizer__                |   [XSum](https://huggingface.co/datasets/EdinburghNLP/xsum), [BillSum](https://huggingface.co/datasets/FiscalNote/billsum)           | <img src="https://go-skill-icons.vercel.app/api/icons?i=hf" width="30px"/>  |
 

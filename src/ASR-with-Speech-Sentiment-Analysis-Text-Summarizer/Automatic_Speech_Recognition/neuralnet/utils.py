@@ -45,13 +45,12 @@ class TextTransform:
     def text_to_int(self, text):
         """ Use a character map and convert text to an integer sequence """
         int_sequence = []
-        special_chars = {' ', '–', '.', '-'}     # Some special chars 
+        special_chars = {' ', '–', '-', '"', '`', "'", '(', ')', ',', ':', ';', '?', '!', '’', '‘', '“', '”', '…', '«', '»', '[', ']', '{', '}', '&', '*', '#', '@', '%', '$', '^', '=', '|', '_', '+', '<', '>', '~'}
         for c in text:
             if c in special_chars:
                 ch = self.char_map['<SPACE>']
             else:
                 ch = self.char_map[c]
-                # print('Mapped Chars:', ch)
             int_sequence.append(ch)
         return int_sequence
 
@@ -61,7 +60,6 @@ class TextTransform:
         string = []
         for i in labels:
             string.append(self.index_map[i]) 
-            # print(string[0])
         return ''.join(string).replace('<SPACE>', ' ')
     
 # Initialize TextProcess for text processing
