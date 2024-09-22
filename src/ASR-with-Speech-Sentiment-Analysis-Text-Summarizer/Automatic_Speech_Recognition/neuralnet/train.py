@@ -8,7 +8,9 @@ import torch.optim as optim
 from torch import nn
 from pytorch_lightning.callbacks import ModelCheckpoint, LearningRateMonitor, EarlyStopping
 from pytorch_lightning.loggers import CometLogger
+# from collections import OrderedDict
 from torchmetrics.text import WordErrorRate, CharErrorRate
+# Load API
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -39,6 +41,8 @@ class ASRTrainer(pl.LightningModule):
 
         # Metrics
         self.losses = []
+        self.val_cer = []
+        self.val_wer = []
         self.char_error_rate = CharErrorRate()
         self.word_error_rate = WordErrorRate()
         self.loss_fn = nn.CTCLoss(blank=28, zero_infinity=True)
@@ -72,7 +76,7 @@ class ASRTrainer(pl.LightningModule):
     
     
     def _common_step(self, batch, batch_idx):
-        spectrograms, labels, input_lengths, label_lengths, references, mask = batch
+        spectrograms, labels, input_lengths, label_lengths, _, _ = batch
         output = self(spectrograms)     # Directly calls forward method of conformer
         output = F.log_softmax(output, dim=-1).transpose(0, 1)
         
@@ -80,7 +84,7 @@ class ASRTrainer(pl.LightningModule):
         return loss, output, labels, label_lengths
     
     def training_step(self, batch, batch_idx):
-        loss, y_pred, labels, label_lengths = self._common_step(batch, batch_idx)
+        loss,_,_,_ = self._common_step(batch, batch_idx)
 
         self.log('train_loss', loss, on_step=True, on_epoch=False, prog_bar=True, logger=True, sync_dist=self.sync_dist)
         return loss
@@ -97,27 +101,34 @@ class ASRTrainer(pl.LightningModule):
         cer_batch = self.char_error_rate(decoded_preds, decoded_targets)
         wer_batch = self.word_error_rate(decoded_preds, decoded_targets)
         
-        # Log final predictions
-        for i in range(len(decoded_preds)):
-            log_targets = decoded_targets[i]
-            log_preds = {"Preds": decoded_preds[i]}
-            self.logger.experiment.log_text(text=log_targets, metadata=log_preds)
+        # Append batch metrics to lists
+        self.val_cer.append(cer_batch)
+        self.val_wer.append(wer_batch)
 
-        self.log('val_cer', cer_batch, on_step=False, on_epoch=True, prog_bar=True, logger=True, batch_size=self.args.batch_size, sync_dist=self.sync_dist)
-        self.log('val_wer', wer_batch, on_step=False, on_epoch=True, prog_bar=True, logger=True, batch_size=self.args.batch_size, sync_dist=self.sync_dist)
+        # Log final predictions
+        if batch_idx%50==0:
+            log_targets = decoded_targets[-1]
+            log_preds = {"Preds": decoded_preds[-1]}
+            self.logger.experiment.log_text(text=log_targets, metadata=log_preds)
 
         return {'val_loss': loss}
 
 
     def on_validation_epoch_end(self):
-        avg_loss = torch.stack([x['val_loss'] for x in outputs]).mean()
-        self.scheduler.step(avg_loss)
+        # Calculate averages of metrics over the entire epoch
+        avg_loss = torch.stack(self.losses).mean()
+        avg_cer = torch.stack(self.val_cer).mean()
+        avg_wer = torch.stack(self.val_wer).mean()
+
+        # Log averaged metrics
+        self.log('val_cer', avg_cer, on_step=False, on_epoch=True, prog_bar=True, logger=True, batch_size=self.args.batch_size, sync_dist=self.sync_dist)
+        self.log('val_wer', avg_wer, on_step=False, on_epoch=True, prog_bar=True, logger=True, batch_size=self.args.batch_size, sync_dist=self.sync_dist)
         self.log('val_loss', avg_loss, on_step=False, on_epoch=True, prog_bar=True, logger=True, batch_size=self.args.batch_size, sync_dist=self.sync_dist)
+
+        # Clear the lists for the next epoch
         self.losses.clear()
-
-
-    def predict_step(self, batch, batch_idx):
-        pass
+        self.val_cer.clear()
+        self.val_wer.clear()
 
 
 def main(args):
@@ -144,18 +155,18 @@ def main(args):
     }
 
     decoder_params = {
-        'd_encoder': 144,                     # Match with Encoder layer
-        'd_decoder': 320,                     # Decoder Dim
-        'num_layers': 1,                      # Decoder Layer
-        'num_classes': 29,                    # Output Classes
+        'd_encoder': 144,    # Match with Encoder layer
+        'd_decoder': 320,    # Decoder Dim
+        'num_layers': 1,     # Deocder Layer
+        'num_classes': 29,   # Output Classes
     }
 
     # Model Instance
     model = ConformerASR(encoder_params, decoder_params)
 
-    # Load weights and add epochs if checkpoint path is provided
+    # Adjust epochs if checkpoint path is provided
     if args.checkpoint_path:
-        checkpoint = torch.load(args.checkpoint_path, weights_only=True)
+        checkpoint = torch.load(args.checkpoint_path)
         args.epochs += checkpoint['epoch'] 
 
     speech_trainer = ASRTrainer(model=model, args=args)
@@ -168,7 +179,7 @@ def main(args):
     checkpoint_callback = ModelCheckpoint(
         monitor='val_loss',
         dirpath="./saved_checkpoint/",
-        filename='ASR-{epoch:02d}-{val_loss:.2f}',
+        filename='ASR-{epoch:02d}-{val_loss:.2f}-{val_wer:.2f}',
         save_top_k=3,        # 3 Checkpoints
         mode='min'
     )
@@ -180,7 +191,7 @@ def main(args):
         'min_epochs': 1,
         'max_epochs': args.epochs,
         'precision': args.precision,
-        'val_check_interval': args.steps,
+        'check_val_every_n_epoch': 1, 
         'gradient_clip_val': 1.0,
         'callbacks': [LearningRateMonitor(logging_interval='epoch'),
                       EarlyStopping(monitor="val_loss"), 

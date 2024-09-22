@@ -45,7 +45,7 @@ class TextTransform:
     def text_to_int(self, text):
         """ Use a character map and convert text to an integer sequence """
         int_sequence = []
-        special_chars = {' ', '–', '-', '"', '`', "'", '(', ')', ',', ':', ';', '?', '!', '’', '‘', '“', '”', '…', '«', '»', '[', ']', '{', '}', '&', '*', '#', '@', '%', '$', '^', '=', '|', '_', '+', '<', '>', '~'}
+        special_chars = {' ', '–', '-', '"', '`', "'", '(', ')', ',', ':', ';', '?', '!', '’', '‘', '“', '”', '…', '«', '»', '[', ']', '{', '}', '&', '*', '#', '@', '%', '$', '^', '=', '|', '_', '+', '<', '>', '~', '.', '.','ł', '\t', '�', 'ß'}
         for c in text:
             if c in special_chars:
                 ch = self.char_map['<SPACE>']
@@ -66,9 +66,7 @@ class TextTransform:
 text_transform = TextTransform()
 
 def GreedyDecoder(output, labels, label_lengths, blank_label=28, collapse_repeated=True):
-    # print(output)
     arg_maxes = torch.argmax(output, dim=2)
-    # print('Argmax indices: ', arg_maxes[0]) 
     decodes = []
     targets = []
     for i, args in enumerate(arg_maxes):

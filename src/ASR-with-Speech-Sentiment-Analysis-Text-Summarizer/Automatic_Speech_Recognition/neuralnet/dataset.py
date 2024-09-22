@@ -31,7 +31,7 @@ def get_featurizer(sample_rate=16000, n_mels=80, hop_length=160):
 class CustomAudioDataset(Dataset):
     def __init__(self, json_path, transform=None, log_ex=True, valid=False):
         print(f'Loading json data from {json_path}')
-        with open(json_path, 'r') as f:
+        with open(json_path, 'r', encoding="utf-8") as f:
             self.data = json.load(f)
         # print(self.data)
         self.text_process = TextTransform()                 # Initialize TextProcess for text processing
@@ -65,9 +65,6 @@ class CustomAudioDataset(Dataset):
             spec_len = spectrogram.shape[-1] 
             label_len = len(label)
 
-            # print(f'SpecShape: {spectrogram.shape} \t shape[-1]: {spectrogram.shape[-1]}')
-            # print(f'Speclen: {spec_len} \t Label_len: {label_len}')
-
             if spec_len < label_len:
                 raise Exception('spectrogram len is bigger then label len')
             if spectrogram.shape[0] > 1:
@@ -81,7 +78,7 @@ class CustomAudioDataset(Dataset):
 
         except Exception as e:
             if self.log_ex:
-                print(str(e), file_path)
+                print(f"{str(e)}\r", end='')
             return self.__getitem__(idx - 1 if idx != 0 else idx + 1)
         
     def describe(self):
