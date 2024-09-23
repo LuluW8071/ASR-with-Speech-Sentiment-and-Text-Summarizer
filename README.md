@@ -22,7 +22,7 @@ This project aims to develop an advanced system that integrates __Automatic Spee
 - [x] **Baseline Model for SER:** XGBoost
 - [x] **Baseline Model for Text Summarizer:** T5-Small, T5-Base
 - [x] **Final Model for ASR:** Conformer
-- [ ] **Final Model for SER:** Stacked CNN-BiLSTM with Self-Attention
+- [x] **Final Model for SER:** Stacked CNN-BiLSTM with Self-Attention
 - [x] **Final Model for Text Summarizer:** BART Large
 
 ## Goals
@@ -56,12 +56,12 @@ This project aims to develop an advanced system that integrates __Automatic Spee
 
 | Base Model </br>(T5-Small, T5-Base)           | Final Model </br>  |
 |---------------------|-----------------------------------------------|
-| ![Base Model](docs/text_summarizer_base_model.png)         |         ![Code in Progress](https://img.shields.io/badge/status-in_progress-red.svg) 
+| ![Base Model](docs/text_summarizer_base_model.png)         |         !![Final Model](docs/bart.png) 
 
 ## High Level Next Steps
 
 
-# Usage
+# Usage 
 
 ### Clone the Repository
 > [!IMPORTANT]
