@@ -18,14 +18,17 @@ class LogMelSpec(nn.Module):
                                                    hop_length=hop_length)
 
     def forward(self, x):
-        x = self.transform(x)  # mel spectrogram
-        x = np.log(x + 1e-14)  # logarithmic, add small value to avoid inf
+        x = self.transform(x)            # Mel spectrogram Conversion
+        x = np.log(x + 1e-14)            # Logarithmic, add small value to avoid inf
         return x
 
+
+# For Engine Inference Only
 def get_featurizer(sample_rate=16000, n_mels=80, hop_length=160):
     return LogMelSpec(sample_rate=sample_rate, 
                       n_mels=n_mels,
                       hop_length=hop_length)
+
 
 # Custom Dataset Class
 class CustomAudioDataset(Dataset):
@@ -42,6 +45,7 @@ class CustomAudioDataset(Dataset):
                 LogMelSpec()
             )
         else:
+            # Time & Frequency Masking
             time_masks = [torchaudio.transforms.TimeMasking(time_mask_param=15, p=0.05) for _ in range(10)]
             self.audio_transforms = nn.Sequential(
                 LogMelSpec(),
@@ -58,10 +62,10 @@ class CustomAudioDataset(Dataset):
         file_path = item['key']
 
         try:
-            waveform, _ = torchaudio.load(file_path)        # Point to location of audio data
-            utterance = item['text'].lower()                # Point to sentence of audio data
-            label = self.text_process.text_to_int(utterance)
-            spectrogram = self.audio_transforms(waveform)   # (channel, feature, time)
+            waveform, _ = torchaudio.load(file_path)         # Point to location of audio data
+            utterance = item['text'].lower()                 # Point to sentence of audio data
+            label = self.text_process.text_to_int(utterance) # Convert characters to integer map from utils.py
+            spectrogram = self.audio_transforms(waveform)    # (channel, feature, time)
             spec_len = spectrogram.shape[-1] 
             label_len = len(label)
 
@@ -69,7 +73,7 @@ class CustomAudioDataset(Dataset):
                 raise Exception('spectrogram len is bigger then label len')
             if spectrogram.shape[0] > 1:
                 raise Exception('dual channel, skipping audio file %s' %file_path)
-            if spectrogram.shape[2] > 1650*3:
+            if spectrogram.shape[2] > 4096*2:
                 raise Exception('spectrogram to big. size %s' %spectrogram.shape[2])
             if label_len == 0:
                 raise Exception('label len is zero... skipping %s' %file_path)
@@ -110,7 +114,8 @@ class SpeechDataModule(pl.LightningDataModule):
             labels.append(torch.Tensor(label))
             input_lengths.append(((spectrogram.shape[-1] - 1) // 2 - 1) // 2)
             label_lengths.append(label_length)
-            references.append(self.text_process.int_to_text(label))  # Convert label back to text
+            references.append(self.text_process.int_to_text(label))      # Convert label back to text
+
         # Pad the spectrograms to have the same width (time dimension)
         spectrograms = nn.utils.rnn.pad_sequence(spectrograms, batch_first=True)
         labels = nn.utils.rnn.pad_sequence(labels, batch_first=True)
