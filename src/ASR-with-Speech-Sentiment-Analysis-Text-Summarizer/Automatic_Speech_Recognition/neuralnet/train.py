@@ -8,17 +8,15 @@ import torch.optim as optim
 from torch import nn
 from pytorch_lightning.callbacks import ModelCheckpoint, LearningRateMonitor, EarlyStopping
 from pytorch_lightning.loggers import CometLogger
-# from collections import OrderedDict
 from torchmetrics.text import WordErrorRate, CharErrorRate
-# Load API
 
+# Load API
 from dotenv import load_dotenv
 load_dotenv()
 
 from dataset import SpeechDataModule
 from model import ConformerEncoder, LSTMDecoder
 from utils import GreedyDecoder
-# from scorer import wer, cer
 
 
 class ConformerASR(nn.Module):
@@ -41,9 +39,9 @@ class ASRTrainer(pl.LightningModule):
 
         # Metrics
         self.losses = []
-        self.val_cer = []
+        # self.val_cer = []
         self.val_wer = []
-        self.char_error_rate = CharErrorRate()
+        # self.char_error_rate = CharErrorRate()
         self.word_error_rate = WordErrorRate()
         self.loss_fn = nn.CTCLoss(blank=28, zero_infinity=True)
 
@@ -64,10 +62,11 @@ class ASRTrainer(pl.LightningModule):
         )
 
         scheduler = {
-            'scheduler': optim.lr_scheduler.StepLR(
+            'scheduler': optim.lr_scheduler.CosineAnnealingWarmRestarts(
                 optimizer,
-                step_size=self.args.lr_step_size,
-                gamma=self.args.lr_gamma
+                T_0=3,         # Number of epochs for the first restart
+                T_mult=2,       # Factor to increase T_0 after each restart
+                eta_min=3e-5    # Minimum learning rate
             ),
             'monitor': 'val_loss'
         }
@@ -98,11 +97,11 @@ class ASRTrainer(pl.LightningModule):
         decoded_preds, decoded_targets = GreedyDecoder(y_pred.transpose(0, 1), labels, label_lengths)
         
         # Calculate metrics
-        cer_batch = self.char_error_rate(decoded_preds, decoded_targets)
+        # cer_batch = self.char_error_rate(decoded_preds, decoded_targets)
         wer_batch = self.word_error_rate(decoded_preds, decoded_targets)
         
         # Append batch metrics to lists
-        self.val_cer.append(cer_batch)
+        # self.val_cer.append(cer_batch)
         self.val_wer.append(wer_batch)
 
         # Log final predictions
@@ -117,17 +116,17 @@ class ASRTrainer(pl.LightningModule):
     def on_validation_epoch_end(self):
         # Calculate averages of metrics over the entire epoch
         avg_loss = torch.stack(self.losses).mean()
-        avg_cer = torch.stack(self.val_cer).mean()
+        # avg_cer = torch.stack(self.val_cer).mean()
         avg_wer = torch.stack(self.val_wer).mean()
 
         # Log averaged metrics
-        self.log('val_cer', avg_cer, on_step=False, on_epoch=True, prog_bar=True, logger=True, batch_size=self.args.batch_size, sync_dist=self.sync_dist)
+        # self.log('val_cer', avg_cer, on_step=False, on_epoch=True, prog_bar=True, logger=True, batch_size=self.args.batch_size, sync_dist=self.sync_dist)
         self.log('val_wer', avg_wer, on_step=False, on_epoch=True, prog_bar=True, logger=True, batch_size=self.args.batch_size, sync_dist=self.sync_dist)
         self.log('val_loss', avg_loss, on_step=False, on_epoch=True, prog_bar=True, logger=True, batch_size=self.args.batch_size, sync_dist=self.sync_dist)
 
         # Clear the lists for the next epoch
         self.losses.clear()
-        self.val_cer.clear()
+        # self.val_cer.clear()
         self.val_wer.clear()
 
 
@@ -163,12 +162,6 @@ def main(args):
 
     # Model Instance
     model = ConformerASR(encoder_params, decoder_params)
-
-    # Adjust epochs if checkpoint path is provided
-    if args.checkpoint_path:
-        checkpoint = torch.load(args.checkpoint_path)
-        args.epochs += checkpoint['epoch'] 
-
     speech_trainer = ASRTrainer(model=model, args=args)
 
     # NOTE: Comet Logger
@@ -177,9 +170,9 @@ def main(args):
 
     # NOTE: Define Trainer callbacks
     checkpoint_callback = ModelCheckpoint(
-        monitor='val_loss',
+        monitor='val_wer',
         dirpath="./saved_checkpoint/",
-        filename='ASR-{epoch:02d}-{val_loss:.2f}-{val_wer:.2f}',
+        filename='ASR-conformer-{epoch:02d}{val_wer:.2f}',
         save_top_k=3,        # 3 Checkpoints
         mode='min'
     )
@@ -214,7 +207,7 @@ if __name__ == "__main__":
 
     # Train Device Hyperparameters
     parser.add_argument('-g', '--gpus', default=1, type=int, help='number of gpus per node')
-    parser.add_argument('-w', '--num_workers', default=4, type=int, help='n data loading workers')
+    parser.add_argument('-w', '--num_workers', default=8, type=int, help='n data loading workers')
     parser.add_argument('-db', '--dist_backend', default='ddp', type=str,
                         help='which distributed backend to use for aggregating multi-gpu train')
 
@@ -223,12 +216,10 @@ if __name__ == "__main__":
     parser.add_argument('--valid_json', default=None, required=True, type=str, help='json file to load testing data')
 
     # General Train Hyperparameters
-    parser.add_argument('--epochs', default=50, type=int, help='number of total epochs to run')
-    parser.add_argument('--batch_size', default=64, type=int, help='size of batch')
-    parser.add_argument('-lr', '--learning_rate', default=3e-5, type=float, help='learning rate')
+    parser.add_argument('--epochs', default=30, type=int, help='number of total epochs to run')
+    parser.add_argument('--batch_size', default=32, type=int, help='size of batch')
+    parser.add_argument('-lr', '--learning_rate', default=2e-4, type=float, help='learning rate')
     parser.add_argument('--precision', default='16-mixed', type=str, help='precision')
-    parser.add_argument('--lr_step_size', type=int, default=10, help='Number of epochs for step decay') 
-    parser.add_argument('--lr_gamma', type=float, default=0.1, help='Decay factor') 
     
     # Checkpoint path
     parser.add_argument('--checkpoint_path', default=None, type=str, help='path to a checkpoint file to resume training')
