@@ -16,7 +16,8 @@ load_dotenv()
 from dataset import SpeechDataModule
 from model import ConformerEncoder, LSTMDecoder
 from utils import GreedyDecoder
-from scorer import wer, cer
+from torchmetrics.text import WordErrorRate, CharErrorRate
+# from scorer import wer, cer
 
 class ConformerASR(nn.Module):
     def __init__(self, encoder_params, decoder_params):
@@ -37,18 +38,18 @@ class ASRTrainer(pl.LightningModule):
 
         # Metrics
         self.losses = []
-        self.val_cer_list = []
-        self.val_wer_list = []
+        # self.val_cer = []
+        self.val_wer = []
+        # self.char_error_rate = CharErrorRate()
+        self.word_error_rate = WordErrorRate()
         self.loss_fn = nn.CTCLoss(blank=28, zero_infinity=True)
-        
-        # Precompute sync_dist for distributed GPUs training
-        self.sync_dist = True if args.gpus > 1 else False
 
-        # Save the hyperparams of checkpoint
-        self.save_hyperparameters()
+        # Precompute sync_dist for distributed GPUs train
+        self.sync_dist = True if args.gpus > 1 else False
 
     def forward(self, x):
         return self.model(x)
+    
     
     def configure_optimizers(self):
         optimizer = optim.AdamW(
@@ -60,18 +61,20 @@ class ASRTrainer(pl.LightningModule):
         )
 
         scheduler = {
-            'scheduler': optim.lr_scheduler.StepLR(
+            'scheduler': optim.lr_scheduler.CosineAnnealingWarmRestarts(
                 optimizer,
-                step_size=self.args.lr_step_size,
-                gamma=self.args.lr_gamma
+                T_0=3,         # Number of epochs for the first restart
+                T_mult=2,       # Factor to increase T_0 after each restart
+                eta_min=3e-5    # Minimum learning rate
             ),
             'monitor': 'val_loss'
         }
 
         return [optimizer], [scheduler]
     
+    
     def _common_step(self, batch, batch_idx):
-        spectrograms, labels, input_lengths, label_lengths, references, mask = batch
+        spectrograms, labels, input_lengths, label_lengths, _, _ = batch
         output = self(spectrograms)     # Directly calls forward method of conformer
         output = F.log_softmax(output, dim=-1).transpose(0, 1)
         
@@ -79,7 +82,7 @@ class ASRTrainer(pl.LightningModule):
         return loss, output, labels, label_lengths
     
     def training_step(self, batch, batch_idx):
-        loss, y_pred, labels, label_lengths = self._common_step(batch, batch_idx)
+        loss,_,_,_ = self._common_step(batch, batch_idx)
 
         self.log('train_loss', loss, on_step=True, on_epoch=False, prog_bar=True, logger=True, sync_dist=self.sync_dist)
         return loss
@@ -89,53 +92,41 @@ class ASRTrainer(pl.LightningModule):
         loss, y_pred, labels, label_lengths = self._common_step(batch, batch_idx)
         self.losses.append(loss)
 
-        val_cer, val_wer = [], []
-        
         # Greedy decoding
         decoded_preds, decoded_targets = GreedyDecoder(y_pred.transpose(0, 1), labels, label_lengths)
         
-        # Decode CER & WER
-        for i in range(len(decoded_preds)):
-            log_targets = decoded_targets[i]
-            log_preds = {"Preds": decoded_preds[i]}
-            
-            # Calculate CER and WER for both Greedy and Beam Search
-            val_cer.append(cer(decoded_targets[i], decoded_preds[i]))
-            val_wer.append(wer(decoded_targets[i], decoded_preds[i]))
+        # Calculate metrics
+        # cer_batch = self.char_error_rate(decoded_preds, decoded_targets)
+        wer_batch = self.word_error_rate(decoded_preds, decoded_targets)
+        
+        # Append batch metrics to lists
+        # self.val_cer.append(cer_batch)
+        self.val_wer.append(wer_batch)
 
         # Log final predictions
-        self.logger.experiment.log_text(text=log_targets, metadata=log_preds)
-
-         # Extend the lists with batch results
-        self.val_cer_list.extend(val_cer)
-        self.val_wer_list.extend(val_wer)
+        if batch_idx%50==0:
+            log_targets = decoded_targets[-1]
+            log_preds = {"Preds": decoded_preds[-1]}
+            self.logger.experiment.log_text(text=log_targets, metadata=log_preds)
 
         return {'val_loss': loss}
 
 
     def on_validation_epoch_end(self):
+        # Calculate averages of metrics over the entire epoch
         avg_loss = torch.stack(self.losses).mean()
-        avg_cer = sum(self.val_cer_list) / len(self.val_cer_list)
-        avg_wer = sum(self.val_wer_list) / len(self.val_wer_list)
+        # avg_cer = torch.stack(self.val_cer).mean()
+        avg_wer = torch.stack(self.val_wer).mean()
 
-        self.log('val_loss', avg_loss.item(), on_step=False, on_epoch=True, prog_bar=True, logger=True, sync_dist=self.sync_dist)
-        self.log('val_cer', avg_cer, on_step=False, on_epoch=True, prog_bar=True, logger=True, sync_dist=self.sync_dist)
-        self.log('val_wer', avg_wer, on_step=False, on_epoch=True, prog_bar=True, logger=True, sync_dist=self.sync_dist)
+        # Log averaged metrics
+        # self.log('val_cer', avg_cer, on_step=False, on_epoch=True, prog_bar=True, logger=True, batch_size=self.args.batch_size, sync_dist=self.sync_dist)
+        self.log('val_wer', avg_wer, on_step=False, on_epoch=True, prog_bar=True, logger=True, batch_size=self.args.batch_size, sync_dist=self.sync_dist)
+        self.log('val_loss', avg_loss, on_step=False, on_epoch=True, prog_bar=True, logger=True, batch_size=self.args.batch_size, sync_dist=self.sync_dist)
 
+        # Clear the lists for the next epoch
         self.losses.clear()
-        self.val_cer_list.clear()
-        self.val_wer_list.clear()
-
-
-    def predict_step(self, batch, batch_idx):
-        pass
-
-    def on_load_checkpoint(self, checkpoint):
-        # Loading encoder and decoder states if needed
-        encoder_state = checkpoint['state_dict']['encoder']
-        decoder_state = checkpoint['state_dict']['decoder']
-        self.encoder.load_state_dict(encoder_state)
-        self.decoder.load_state_dict(decoder_state)
+        # self.val_cer.clear()
+        self.val_wer.clear()
 
 def main(args):
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -153,7 +144,8 @@ def main(args):
                                    ],
                                    test_url=[
                                     "test-clean", 
-                                    "test-other"
+                                    "test-other",
+                                    "dev-clean"
                                    ],
                                    num_workers=args.num_workers)
     data_module.setup()
@@ -205,7 +197,7 @@ def main(args):
         'min_epochs': 1,
         'max_epochs': args.epochs,
         'precision': args.precision,
-        'val_check_interval': args.steps,
+        'check_val_every_n_epoch': 1, 
         'gradient_clip_val': 1.0,
         'callbacks': [LearningRateMonitor(logging_interval='epoch'),
                       EarlyStopping(monitor="val_loss"), 
@@ -221,7 +213,7 @@ def main(args):
     # Automatically restores model, epoch, step, LR schedulers, etc...
     ckpt_path = args.checkpoint_path if args.checkpoint_path else None
 
-    trainer.fit(speech_trainer, data_module, ckpt_path=ckpt_path)
+    trainer.fit(speech_trainer, data_module)
     trainer.validate(speech_trainer, data_module)
 
 
