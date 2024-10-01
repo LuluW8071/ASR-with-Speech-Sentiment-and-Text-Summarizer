@@ -22,7 +22,7 @@ def index():
 def start():
     action = DemoAction()
     asr_engine.run(action)
-    return jsonify("speechrecognition start success!")
+    return jsonify("Loaded ASR!") 
 
 
 @app.route("/get_audio")

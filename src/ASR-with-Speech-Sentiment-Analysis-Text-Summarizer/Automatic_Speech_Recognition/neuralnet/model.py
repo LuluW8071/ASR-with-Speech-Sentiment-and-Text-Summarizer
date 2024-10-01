@@ -48,13 +48,13 @@ class SpeechRecognition(nn.Module):
         )
         self.lstm = nn.LSTM(input_size=128, hidden_size=hidden_size,
                             num_layers=num_layers, dropout=0.2,
-                            bidirectional=True)
-        self.layer_norm2 = nn.LayerNorm(hidden_size * 2)         # Adjust for bidirectionality
+                            bidirectional=False)
+        self.layer_norm2 = nn.LayerNorm(hidden_size)         # Adjust for bidirectionality
         self.dropout2 = nn.Dropout(dropout)
-        self.final_fc = nn.Linear(hidden_size * 2, num_classes)  # Adjust for bidirectionality
+        self.final_fc = nn.Linear(hidden_size, num_classes)  # Adjust for bidirectionality
 
     def _init_hidden(self, batch_size):
-        n, hs = self.num_layers * 2, self.hidden_size            # num_layers * num_directions
+        n, hs = self.num_layers, self.hidden_size            # num_layers * num_directions
         return (torch.zeros(n*1, batch_size, hs),
                 torch.zeros(n*1, batch_size, hs))
 

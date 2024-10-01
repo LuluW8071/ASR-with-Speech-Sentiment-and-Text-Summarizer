@@ -7,7 +7,7 @@ import torchaudio.transforms as transforms
 import numpy as np
 
 from torch.utils.data import DataLoader, Dataset
-from utils import TextTransform       # Comment this for engine inference
+# from utils import TextTransform       # Comment this for engine inference
 
 
 class LogMelSpec(nn.Module):
@@ -25,7 +25,7 @@ class LogMelSpec(nn.Module):
         return x
 
 # MelSpec Feature Extraction for ASR Engine Inference
-def get_featurizer(sample_rate=16000, n_mels=128, win_length=400, hop_length=160, n_fft=1024):
+def get_featurizer(sample_rate=16000, n_mels=81, win_length=400, hop_length=160, n_fft=1024):
     return LogMelSpec(sample_rate=sample_rate, 
                       n_mels=n_mels,
                       win_length=win_length,
