@@ -22,10 +22,10 @@ class ActDropNormCNN1D(nn.Module):
 class SpeechRecognition(nn.Module):
     hyper_parameters = {
         "num_classes": 29,  # output_class
-        "n_feats": 128,     # n_mels
+        "n_feats": 81,     # n_mels
         "dropout": 0.2,
         "hidden_size": 1024,
-        "num_layers": 2     # RNN Layers
+        "num_layers": 1     # RNN Layers
     }
 
     def __init__(self, hidden_size, num_classes, n_feats, num_layers, dropout):
@@ -47,7 +47,7 @@ class SpeechRecognition(nn.Module):
             nn.Dropout(dropout),
         )
         self.lstm = nn.LSTM(input_size=128, hidden_size=hidden_size,
-                            num_layers=num_layers, dropout=0.2,
+                            num_layers=num_layers, dropout=0,
                             bidirectional=False)
         self.layer_norm2 = nn.LayerNorm(hidden_size)         # Adjust for bidirectionality
         self.dropout2 = nn.Dropout(dropout)

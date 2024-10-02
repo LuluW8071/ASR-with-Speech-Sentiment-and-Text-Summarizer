@@ -6,7 +6,7 @@ from collections import OrderedDict
 
 def trace(model):
     model.eval()
-    x = torch.rand(1, 128, 512)                     # (Batch size, input feature, time sequence)
+    x = torch.rand(1, 81, 256)                     # (Batch size, input feature, time sequence)
     hidden = model._init_hidden(1)                  # (Batch size)
     traced = torch.jit.trace(model, (x, hidden))
     return traced
