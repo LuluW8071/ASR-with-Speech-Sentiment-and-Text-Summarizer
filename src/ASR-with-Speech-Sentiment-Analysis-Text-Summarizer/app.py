@@ -1,36 +1,42 @@
 import webbrowser
 import sys
 import argparse
-
 from os.path import join, dirname
-from flask import Flask, render_template, jsonify
+from fastapi import FastAPI, Request
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import HTMLResponse
+from fastapi.templating import Jinja2Templates
 
 # ASR engine path
 sys.path.append(join(dirname(__file__), 'Automatic_Speech_Recognition'))
 from engine import SpeechRecognitionEngine
 
+app = FastAPI()
+
+# Serve static files
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+# Setup Jinja2 templates
+templates = Jinja2Templates(directory="templates")
+
+# Global variable for ASR engine
 global asr_engine
-app = Flask(__name__,static_folder='static', static_url_path='/static')
 
+@app.get("/", response_class=HTMLResponse)
+async def index(request: Request):
+    return templates.TemplateResponse("index.html", {"request": request})
 
-@app.route("/")
-def index():
-    return render_template('index.html')
-
-
-@app.route("/start_asr")
-def start():
+@app.get("/start_asr")
+async def start():
     action = DemoAction()
     asr_engine.run(action)
-    return jsonify("Loaded ASR!") 
+    return {"message": "Speech recognition started successfully!"}
 
-
-@app.route("/get_audio")
-def get_audio():
+@app.get("/get_audio")
+async def get_audio():
     with open('transcript.txt', 'r') as f:
         transcript = f.read()
-    return jsonify(transcript)
-
+    return {"transcript": transcript}
 
 class DemoAction:
     def __init__(self):
@@ -47,8 +53,8 @@ class DemoAction:
 
     def save_transcript(self, transcript):
         with open("transcript.txt", 'w+') as f:
+            # print(transcript)
             f.write(transcript)
-
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Demo of Automatic Speech Recognition")
@@ -58,5 +64,6 @@ if __name__ == "__main__":
 
     asr_engine = SpeechRecognitionEngine(args.model_file, args.kenlm_file)
     webbrowser.open_new('http://127.0.0.1:3000/')
-    app.run(port=3000)
     
+    import uvicorn
+    uvicorn.run(app, host="127.0.0.1", port=3000)
