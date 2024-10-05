@@ -108,6 +108,13 @@ def process_audio(audio_file_path):
     return predicted_emotion
 
 # Take input audio file from user
+
+print("NOTE: IT YOU HAVE MP3 FILE, THEN PLEASE RUN MP3_TO_WAV.PY SCRIPT TO CONVERT MP3 TO WAV FIRST, THEN ONLY RUN TIS SCRIPT")
+
+print("\n")
+print("\n")
+print("\n")
+
 file_path = input("Enter the path to your .wav file: ")
 
 # Process the audio and predict emotion
