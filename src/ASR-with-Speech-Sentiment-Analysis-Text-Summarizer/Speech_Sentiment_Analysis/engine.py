@@ -1,5 +1,6 @@
 import numpy as np
 import joblib
+import argparse
 import librosa
 import torch
 
@@ -19,21 +20,18 @@ EMOTIONS = {
     0: 'surprise'
 }
 
+# Initialize scaler
 scaler = StandardScaler()
-model = HybridModel(len(EMOTIONS))
-model.load_state_dict(torch.load("model/speech_sentiment.pt", map_location=torch.device('cpu')))
-SAMPLE_RATE = 48000
-scaler = joblib.load('model/scaler.pkl')
 
-def process_audio(audio_file_path):
+def process_audio(audio_file_path, sample_rate=48000):
     global scaler
     chunked_spec = []
 
     # Load audio file
-    audio, sample_rate = librosa.load(audio_file_path, sr=SAMPLE_RATE, duration=3)
-    signal = np.zeros((int(SAMPLE_RATE * 3),))
+    audio, _ = librosa.load(audio_file_path, sr=sample_rate, duration=3)
+    signal = np.zeros((int(sample_rate * 3),))
     signal[:len(audio)] = audio
-    mel_spectrogram = getMELspectrogram(signal, SAMPLE_RATE)
+    mel_spectrogram = getMELspectrogram(signal, sample_rate)
     chunks = splitIntoChunks(mel_spectrogram, win_size=128, stride=64)
 
     chunked_spec.append(chunks)
@@ -53,12 +51,21 @@ def process_audio(audio_file_path):
         model.eval()
         _, output_softmax, _ = model(chunks_tensor)
         predictions = torch.argmax(output_softmax, dim=1)
-        print(predictions)
         predicted_emotion = EMOTIONS[predictions.item()]
 
         print(f"Predicted Emotion: {predicted_emotion}")
         return predicted_emotion
 
-file_path = "fear.wav"
-process_audio(file_path)
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Demoing the speech sentiment recognition engine.")
+    parser.add_argument('--model_file', type=str, default="model/speech_sentiment.pt", required=True, help='Path to SER model file.')
+    parser.add_argument('--scaler_file', type=str, default="model/scaler.pkl", required=True, help='Path to SER model file.')
+    parser.add_argument('--file_path', type=str, default="fear.wav", help='Input File')
+
+    args = parser.parse_args()
+
+    model = HybridModel(len(EMOTIONS))
+    model.load_state_dict(torch.load(args.model_file, map_location=torch.device('cpu')))
+    scaler = joblib.load('model/scaler.pkl')
+    process_audio(audio_file_path=args.file_path, sample_rate=48000)
 
