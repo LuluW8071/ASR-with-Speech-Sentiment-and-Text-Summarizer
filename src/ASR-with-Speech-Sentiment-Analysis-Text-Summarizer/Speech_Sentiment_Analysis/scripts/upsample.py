@@ -18,7 +18,7 @@ def process_file(row, clips_directory, directory, output_format):
 
     # Convert to FLAC or WAV using Sox and downsample to 16kHz
     tfm = sox.Transformer()
-    tfm.rate(samplerate=16000)
+    tfm.rate(samplerate=48000)
     tfm.build(input_filepath=audio_path, output_filepath=output_audio_path)
 
     return {'path': output_audio_path, 'emotions': sentiment}
