@@ -4,15 +4,15 @@ import random
 import json
 import csv
 import sox
+import re
 from tqdm import tqdm
 from multiprocessing.pool import ThreadPool
 from pathlib import Path
 from sox.core import SoxiError
 
 def clean_text(text):
-    characters_to_remove = ':!,"‘’;—?'
-    translator = str.maketrans('', '', characters_to_remove)
-    return text.translate(translator)
+    cleaned_text = re.compile(r'[–\-"`(),:;?!’‘“”…«»\[\]{}&*#@%$^=|_+<>~.ł\t�ß]').sub('', text)
+    return cleaned_text
 
 def process_file(row, clips_directory, directory, output_format):
     file_name = row['path']
@@ -20,6 +20,10 @@ def process_file(row, clips_directory, directory, output_format):
     text = clean_text(row['sentence'])
     audio_path = os.path.join(directory, 'clips', file_name)
     output_audio_path = os.path.join(clips_directory, clips_name)
+
+    # Skip if the input file doesn't exist
+    if not os.path.exists(audio_path):
+        return None
 
     # Skip conversion if the output file already exists
     if os.path.exists(output_audio_path):
@@ -62,7 +66,10 @@ def main(args):
             file_name = row[0]['path']
             clips_name = file_name.rpartition('.')[0] + '.' + args.output_format
             text = clean_text(row[0]['sentence'])
-            data.append({'key': clips_directory + '/' + clips_name, 'text': text})
+            audio_path = os.path.join(directory, 'clips', file_name)
+            # Skip if file doesn't exist
+            if os.path.exists(audio_path):
+                data.append({'key': clips_directory + '/' + clips_name, 'text': text})
 
     random.shuffle(data)
     print("Creating train and test JSON sets")

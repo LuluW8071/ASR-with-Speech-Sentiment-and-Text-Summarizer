@@ -20,7 +20,8 @@ def save_to_json(data, output_file):
     with open(output_file, 'w') as out_file:
         json.dump(data, out_file, indent=4)
 
-def main():
+
+if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Merge and shuffle JSON files.')
     parser.add_argument('files', metavar='F', type=str, nargs='+', 
                         help='JSON files to merge')
@@ -34,6 +35,3 @@ def main():
     save_to_json(shuffled_data, args.output)
 
     print(f"Merging and shuffling complete. Output saved to '{args.output}'.")
-
-if __name__ == "__main__":
-    main()
