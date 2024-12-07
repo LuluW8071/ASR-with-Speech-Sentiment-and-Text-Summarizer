@@ -88,6 +88,10 @@ def main(args):
 
     print("Tracing model...")
     traced_model = trace(model)
+
+    if not os.path.exists(args.save_path):
+        os.makedirs(args.save_path)
+        
     print("Saving to", args.save_path)
     traced_model.save(os.path.join(args.save_path, 'optimized_model.pt'))
     print("Done!")
