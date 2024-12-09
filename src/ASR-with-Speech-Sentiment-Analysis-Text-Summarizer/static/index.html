@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Speech Analysis System</title>
+    <link rel="stylesheet" href="static/style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Speech Analysis System</h1>
+        <div class="grid">
+            <div class="card">
+                <div class="card-title">Audio Recording</div>
+                <div class="card-content">
+                    <div class="button-wrapper">
+                        <button id="recordBtn" onclick="init()">Click to Begin</button>
+                    </div>
+                    <div class="visualizer-wrapper">
+                        <main>
+                            <!-- Your audio visualizer will go here -->
+                        </main>
+                    </div>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-title">Transcription</div>
+                <div class="card-content">
+                    <div id="transcript">
+                        <p id="result"></p>
+                    </div>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-title">Emotion Detection</div>
+                <div class="card-content">
+                    <div id="emotion-wrapper">
+                        <div id="emotion">None</div>
+                    </div>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-title">Text Summarization</div>
+                <div class="card-content emotion-wrapper">
+                    <div class="button-wrapper">
+
+                        <button id="summarizeBtn" disabled>Generate Summary</button>
+                    </div>
+                    <div id="summary"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="static/script.js"></script>
+</body>
+</html>

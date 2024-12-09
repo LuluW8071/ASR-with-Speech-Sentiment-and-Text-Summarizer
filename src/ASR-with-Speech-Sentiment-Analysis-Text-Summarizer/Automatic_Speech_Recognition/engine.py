@@ -4,7 +4,7 @@ import math
 import time
 import struct
 import argparse
-from dataset import get_featurizer
+from neuralnet.dataset import get_featurizer
 from decoder import SpeechRecognitionEngine
 
 

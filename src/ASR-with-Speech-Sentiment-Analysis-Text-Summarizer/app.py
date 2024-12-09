@@ -1,9 +1,13 @@
 import os
 import sys
 import argparse
+from os.path import join, dirname
 
 from flask import Flask, request, jsonify, send_from_directory
 from werkzeug.utils import secure_filename
+
+import Speech_Sentiment_Analysis
+import Text_Summarizer
 
 # ASR engine path
 sys.path.append(join(dirname(__file__), 'Automatic_Speech_Recognition'))
@@ -11,11 +15,12 @@ from neuralnet.dataset import get_featurizer
 from decoder import SpeechRecognitionEngine
 from engine import Recorder
 
+
 app = Flask(__name__)
 
 # Configuration
 UPLOAD_FOLDER = 'uploads'
-STATIC_FOLDER = 'static/assets'
+STATIC_FOLDER = 'static'
 
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
@@ -33,6 +38,18 @@ asr_engine = None  # Initialize to None, to avoid issues during startup
 def index():
     return send_from_directory(STATIC_FOLDER, "index.html")
 
+@app.route("/get-emotion", methods=["GET"])
+def get_emotion():
+    emotion = Speech_Sentiment_Analysis.process_audio("audio_temp.wav")
+    
+    return {"emotion" : emotion}
+
+@app.route("/get-summary", methods=["GET"])
+def get_summary():
+    with open("transcription.txt", "r") as f:
+        transcript = f.read()
+        summary = Text_Summarizer.summarize_texts(transcript)
+        return {"summary" : summary}
 
 @app.route("/transcribe/", methods=["POST"])
 def transcribe_audio():
@@ -68,9 +85,13 @@ def transcribe_audio():
         print("\nTranscription:")
         print(transcript)
 
+        with open("transcription.txt", "w") as f:
+            f.write(transcript)
+
         return jsonify({"transcription": transcript})
 
     except Exception as e:
+        print(e)
         return jsonify({"error": f"Internal server error: {e}"}), 500
 
 
@@ -88,7 +109,7 @@ def main(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="ASR Demo: Record and Transcribe Audio")
     parser.add_argument('--model_file', type=str, required=True, help='Path to the optimized ASR model.')
-    parser.add_argument('--token_path', type=str, default="assets/tokens.txt", help='Path to the tokens file.')
+    parser.add_argument('--token_path', type=str, default="token.txt", help='Path to the tokens file.')
     args = parser.parse_args()
 
     main(args)

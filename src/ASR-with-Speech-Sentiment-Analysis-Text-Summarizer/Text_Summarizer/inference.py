@@ -1,7 +1,8 @@
 from transformers import pipeline
 
 # Initialize the single pipeline for text generation
-bart_cnn_finetuned = pipeline("text2text-generation", model="luluw/bart-large-cnn-finetuned")
+bart_cnn_finetuned = pipeline("text2text-generation", model="404sau404/bart_samsum_finetuned_for_asr")
+
 
 def get_samples_from_file(file_path):
     """
@@ -24,7 +25,7 @@ def get_samples_from_file(file_path):
         print(f"Error: The file {file_path} was not found.")
         return []
 
-def summarize_texts(pipeline, texts):
+def summarize_texts(text):
     """
     Summarizes texts using the provided pipeline.
 
@@ -35,21 +36,18 @@ def summarize_texts(pipeline, texts):
     Returns:
     - list: A list of summaries.
     """
-    summaries = []
+    global bart_cnn_finetuned
+    try:
+        summary = bart_cnn_finetuned(text, max_new_tokens=160)[0]['generated_text']
+        print(f"Summary:\n", summary, end="\n\n")
+    except Exception as e:
+        print(f"Error processing text: {e}")
     
-    for idx, text in enumerate(texts):
-        try:
-            summary = pipeline(text, max_new_tokens=160)[0]['generated_text']
-            summaries.append(summary)
-            print(f"Text {idx+1} Summary:\n", summary, end="\n\n")
-        except Exception as e:
-            print(f"Error processing text {idx+1}: {e}")
-    
-    return summaries
+    return summary
 
-if __name__ == "__main__":
-    file_path = "sample/text_samples.txt"
+# if __name__ == "__main__":
+#     file_path = "sample/text_samples.txt"
 
-    # Fetch text samples from the file and summarize them
-    texts = get_samples_from_file(file_path)
-    summaries = summarize_texts(bart_cnn_finetuned, texts)
+#     # Fetch text samples from the file and summarize them
+#     texts = get_samples_from_file(file_path)
+#     summaries = summarize_texts(bart_cnn_finetuned, texts)
