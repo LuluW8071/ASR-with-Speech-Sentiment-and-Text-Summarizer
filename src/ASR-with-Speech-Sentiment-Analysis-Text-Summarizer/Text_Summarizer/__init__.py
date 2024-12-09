@@ -1,0 +1,1 @@
+from Text_Summarizer.inference import summarize_texts

@@ -1,12 +1,19 @@
 import os
 import argparse
 import random
-from tqdm import tqdm
-from pathlib import Path
+import json
 import sox
+import re
+
+from tqdm import tqdm
 from multiprocessing.pool import ThreadPool
 from sox.core import SoxiError
-import json
+
+
+def clean_text(text):
+    # Remove unwanted symbols
+    text = re.compile(r'[–\-"`(),:;?!’‘“”…«»\[\]{}&*#@%$^=|_+<>~.ł\t�ß]').sub('', text)
+    return text
 
 def read_data(file_path):
     data = []
@@ -15,7 +22,7 @@ def read_data(file_path):
             parts = line.strip().split('|')
             if len(parts) == 3:
                 filename, transcript, _ = parts
-                data.append((filename, transcript))
+                data.append((filename, clean_text(transcript)))
     return data
 
 def convert_audio(input_path, output_path, output_format="flac"):
@@ -56,10 +63,11 @@ def process_dataset(dataset, output_directory, input_audio_dir, output_format, n
                             desc=f"Processing {os.path.basename(output_directory)}"))
 
     results = [result for result in results if result is not None]
-    return results  # Return processed results
+    return results
 
 def write_json(results, output_json, output_directory, upsample):
     dataset = []
+
     # Get absolute path of output directory
     output_directory_abs = os.path.abspath(output_directory)
     
@@ -76,7 +84,6 @@ def write_json(results, output_json, output_directory, upsample):
 def main(args):
     input_audio_dir = os.path.dirname(args.input_file)
     data = read_data(args.input_file)
-    random.seed(42)  # For reproducibility
     random.shuffle(data)
 
     split_index = int(len(data) * (1 - args.percent / 100))
@@ -94,7 +101,7 @@ def main(args):
     test_json = os.path.join(args.output_dir, 'test.json')
     
     write_json(train_results, train_json, output_directory, args.upsample)
-    write_json(test_results, test_json, output_directory, 1)  # No upsampling in test
+    write_json(test_results, test_json, output_directory, 1)  
 
     print(f"Train and test JSON files saved at {args.output_dir}")
 
